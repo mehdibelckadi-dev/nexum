@@ -1,0 +1,5 @@
+pyyaml
+pydantic>=2
+typer
+reportlab
+pytest

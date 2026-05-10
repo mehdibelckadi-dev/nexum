@@ -1,0 +1,77 @@
+openapi: "3.0.3"
+info:
+  title: "Billing API"
+  version: "2.1.0"
+
+paths:
+  /invoices:
+    get:
+      summary: "List invoices"
+      operationId: "listInvoices"
+      parameters:
+        - name: api_key
+          in: query
+          required: true
+          schema:
+            type: string
+          description: "Secret API key used for authentication — passed as a query parameter"
+        - name: token
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "Bearer token forwarded as a query param for legacy clients"
+      responses:
+        "200":
+          description: "Paginated list of invoices"
+
+  /invoices/{invoice_id}:
+    get:
+      summary: "Get a single invoice"
+      operationId: "getInvoice"
+      parameters:
+        - name: invoice_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: api_key
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Invoice detail"
+
+  /users/{user_id}:
+    delete:
+      summary: "Delete a specific user by ID"
+      operationId: "deleteUser"
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: "User deleted successfully"
+
+components:
+  schemas:
+    Invoice:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+  securitySchemes:
+    ApiKeyQuery:
+      type: apiKey
+      in: query
+      name: api_key

@@ -1,11 +1,7 @@
-# PACT — Briefing de Sesión para Claude Code
-
-## Language rule
-All code, comments, variable names, function names, docstrings, error messages,
-and file content must be written in English. Only respond to me in Spanish.
+# NEXUM — Briefing de Sesión para Claude Code
 
 ## Misión de este sprint
-Construir el Pact Scanner: una herramienta CLI que analiza definiciones MCP u OpenAPI
+Construir el Nexum Scanner: una herramienta CLI que analiza definiciones MCP u OpenAPI
 y devuelve un Trust Manifest draft (JSON) + Reporte de Riesgo (PDF).
 
 ## Filosofía — leer antes de escribir una sola línea
@@ -14,28 +10,32 @@ y devuelve un Trust Manifest draft (JSON) + Reporte de Riesgo (PDF).
 - El Trust Manifest marca REQUIRES_HUMAN_REVIEW en lugar de inventar valores.
 - No pasar al siguiente bloque sin pytest en verde en el bloque anterior.
 
+## Language rule
+All code, comments, variable names, function names, docstrings, error messages,
+and file content must be written in English. Only respond to me in Spanish.
+
 ## Stack
 - Python 3.11+
 - pydantic v2, pyyaml, typer, reportlab, pytest
 
 ## Estructura del proyecto
-pact/
+nexum/
 ├── core/
 │   ├── ingestor.py
 │   ├── engine.py
 │   ├── scorer.py
 │   └── rules/
 │       ├── base.py
-│       ├── auth_leakage.py       # PACT-001
-│       ├── destructive_ambiguity.py  # PACT-002
-│       ├── unbounded_scope.py    # PACT-003
-│       ├── idempotency.py        # PACT-004
-│       └── schema_volatility.py  # PACT-005
+│       ├── auth_leakage.py           # NEXUM-001
+│       ├── destructive_ambiguity.py  # NEXUM-002
+│       ├── unbounded_scope.py        # NEXUM-003
+│       ├── idempotency.py            # NEXUM-004
+│       └── schema_volatility.py      # NEXUM-005
 ├── manifest/
 │   └── generator.py
 ├── report/
 │   └── pdf_generator.py
-├── cli.py
+├── cli.py                            # nexum scan <archivo>
 ├── tests/
 │   ├── fixtures/
 │   │   ├── sample_mcp.json
@@ -44,34 +44,30 @@ pact/
 └── data/
     └── findings_log.jsonl
 
-## Orden de construcción — no saltarse pasos
-1. core/ingestor.py
-2. core/rules/base.py + dataclass Finding
-3. Las 5 reglas (una por archivo)
-4. core/engine.py
-5. CHECKPOINT pytest
-6. core/scorer.py
-7. manifest/generator.py
-8. cli.py → comando: pact scan <archivo>
-9. report/pdf_generator.py (último)
+## Estado actual (Sprint 0 completado)
+- 92/92 tests en verde
+- CLI funcional: nexum scan <archivo>
+- PDF: nexum report <archivo> --output report.pdf
+- Scans reales: GitHub REST API (404 findings), Twilio v2010 (62 findings)
+- findings_log.jsonl: 72 entradas
 
 ## Las 5 reglas
 
-| ID       | Clase                | Qué detecta                                        | Severidad |
-|----------|----------------------|----------------------------------------------------|-----------|
-| PACT-001 | AuthLeakageRisk      | Credenciales en query_string                       | CRITICAL  |
-| PACT-002 | DestructiveAmbiguity | Borrado sin ID específico                          | CRITICAL  |
-| PACT-003 | UnboundedScope       | Wildcard params o DELETE/PATCH sin filtros         | HIGH      |
-| PACT-004 | IdempotencyMissing   | Mutaciones sin Idempotency-Key                     | HIGH      |
-| PACT-005 | SchemaVolatility     | additionalProperties: true en schemas de mutación  | MEDIUM    |
+| ID        | Clase                | Qué detecta                                        | Severidad |
+|-----------|----------------------|----------------------------------------------------|-----------|
+| NEXUM-001 | AuthLeakageRisk      | Credenciales en query_string                       | CRITICAL  |
+| NEXUM-002 | DestructiveAmbiguity | Borrado sin ID específico                          | CRITICAL  |
+| NEXUM-003 | UnboundedScope       | Wildcard params o DELETE/PATCH sin filtros         | HIGH      |
+| NEXUM-004 | IdempotencyMissing   | Mutaciones sin Idempotency-Key                     | HIGH      |
+| NEXUM-005 | SchemaVolatility     | additionalProperties: true en schemas de mutación  | MEDIUM    |
 
-## Formato Finding (dataclass)
-rule_id: str          # "PACT-001"
-rule_name: str        # "AuthLeakageRisk"
-severity: str         # CRITICAL | HIGH | MEDIUM | LOW
-path: str             # "/endpoint/afectado"
-method: str           # GET | POST | DELETE | PATCH...
-evidence_snippet: str # fragmento exacto del JSON/YAML que dispara la regla
+## Formato Finding
+rule_id: str           # "NEXUM-001"
+rule_name: str         # "AuthLeakageRisk"
+severity: str          # CRITICAL | HIGH | MEDIUM | LOW
+path: str              # "/endpoint/afectado"
+method: str            # GET | POST | DELETE | PATCH...
+evidence_snippet: str  # fragmento exacto del JSON/YAML
 human_explanation: str
 guardrail_suggestion: str
 
@@ -80,14 +76,14 @@ CRITICAL=25, HIGH=10, MEDIUM=5, LOW=1
 Score = min(100, suma de puntos)
 Tier 0: 0-30 | Tier 1: 31-60 | Tier 2: 61-100
 
-## Trust Manifest draft — estructura
+## Trust Manifest draft
 {
   "manifest_version": "1.0-draft",
   "scanned_at": "<ISO timestamp>",
   "source_file": "<nombre archivo>",
   "inferred_risk_tier": 0,
-  "pact_risk_score": 0,
-  "model_compatibility_range": ">=gpt-4o-2024-01",
+  "nexum_risk_score": 0,
+  "model_compatibility_range": "REQUIRES_HUMAN_REVIEW",
   "auto_detected_invariants": {
     "immutable_fields": [],
     "numeric_limits": {},
@@ -98,11 +94,15 @@ Tier 0: 0-30 | Tier 1: 31-60 | Tier 2: 61-100
 }
 
 ## PDF — estructura (2 páginas máximo)
-Página 1: Pact Risk Score (número grande), Risk Tier, Top 3 findings con evidence
-Página 2: Tabla completa de findings + guardrail_suggestions
+Página 1: Nexum Risk Score (número grande), Risk Tier, tabla breakdown por regla, Top 3 findings
+Página 2: Tabla completa de findings + guardrail_suggestions + "...and N more" si volumen alto
 
-## Lo que NO hacer en esta sesión
+## Deuda técnica activa
+TD-001: Heurístico frágil en NEXUM-004 — tools como remove_record o purge_data
+no se detectan. Solución futura: x-nexum-intent annotation en Trust Manifest v1.1.
+
+## Lo que NO hacer
 - No construir Sidecar, Proxy ni SDK
-- No conectar a servicios externos ni APIs
+- No conectar a servicios externos
 - No integrar LLM en ninguna función
-- No generar el PDF antes de que el engine pase pytest
+- No cambiar IDs de reglas a PACT-XXX (el nombre correcto es NEXUM-XXX)

@@ -1,4 +1,4 @@
-# PACT Session Log
+# Nexum Session Log
 
 ---
 
@@ -9,8 +9,8 @@
 | # | Artefacto | Estado |
 |---|---|---|
 | 1 | `core/ingestor.py` + fixtures | ✅ |
-| 2 | `core/rules/base.py` + `Finding` + PACT-001 `AuthLeakageRisk` | ✅ |
-| 3 | PACT-002 `DestructiveAmbiguity`, PACT-003 `UnboundedScope`, PACT-004 `IdempotencyMissing`, PACT-005 `SchemaVolatility` | ✅ |
+| 2 | `core/rules/base.py` + `Finding` + NEXUM-001 `AuthLeakageRisk` | ✅ |
+| 3 | NEXUM-002 `DestructiveAmbiguity`, NEXUM-003 `UnboundedScope`, NEXUM-004 `IdempotencyMissing`, NEXUM-005 `SchemaVolatility` | ✅ |
 | 4 | `core/engine.py` | ✅ |
 | 5 | Checkpoint pytest — suite completo contra ambos fixtures | ✅ |
 | 6 | `core/scorer.py` — fórmula CRITICAL=25 HIGH=10 MEDIUM=5 LOW=1, cap 100, tiers | ✅ |
@@ -27,7 +27,7 @@ GitHub). Generar el layout de 2 páginas sobre fixtures sintéticos no aporta fe
 sobre qué información necesita verse primero. Se retoma en la próxima sesión inmediatamente
 después del scan real.
 
-**PACT-003 + MCP — silencio limpio por diseño:**
+**NEXUM-003 + MCP — silencio limpio por diseño:**
 La regla solo evalúa DELETE y PATCH. Los tools MCP normalizados a POST son filtrados en la
 primera línea del bucle. El comportamiento está fijado con un test explícito
 (`test_mcp_fixture_returns_empty_list_without_exception`) para que no regrese en una
@@ -46,20 +46,20 @@ añadir lógica.
 | # | Artefacto | Estado |
 |---|-----------|--------|
 | A | Fixture real: pact/tests/fixtures/real_twilio_v2010.json (1.8MB, válido) | ✅ |
-| B | Primer scan real: 62 findings PACT-004 HIGH, score 100/100 Tier 2 | ✅ |
+| B | Primer scan real: 62 findings NEXUM-004 HIGH, score 100/100 Tier 2 | ✅ |
 | C | data/findings_log.jsonl: 65 entradas (62 findings + 3 analysis_notes) | ✅ |
 | 9 | report/pdf_generator.py + comando pact report | ✅ |
 
 ### Hallazgos reales encontrados
 | API | Regla disparada | Severity | Count |
 |-----|----------------|----------|-------|
-| twilio_v2010 | PACT-004 IdempotencyMissing | HIGH | 62 |
+| twilio_v2010 | NEXUM-004 IdempotencyMissing | HIGH | 62 |
 
 ### Reglas que NO dispararon en Twilio (investigar en Sesión 3)
-- PACT-001: Twilio usa HTTP Basic Auth + AccountSid en path, no query string
-- PACT-002: No hay endpoints de borrado sin ID específico en esta spec
-- PACT-003: No hay DELETE/PATCH sin filtros obligatorios detectados
-- PACT-005: No hay additionalProperties: true en schemas de mutación
+- NEXUM-001: Twilio usa HTTP Basic Auth + AccountSid en path, no query string
+- NEXUM-002: No hay endpoints de borrado sin ID específico en esta spec
+- NEXUM-003: No hay DELETE/PATCH sin filtros obligatorios detectados
+- NEXUM-005: No hay additionalProperties: true en schemas de mutación
 
 ### Deuda técnica nueva
 **TD-002:** manifest generator no lee securitySchemes → required_headers queda vacío  
@@ -68,13 +68,13 @@ añadir lógica.
 **TD-005:** Paths largos en Top Findings sin truncado — necesita recorte con "..." al centro — **fixed**  
 **TD-006:** `truncate_path` corta en posición de carácter, no en límite de segmento `/` — el resultado (`...ts/`) carece de contexto para un lector sin conocimiento de la API  
 
-### Candidatos PACT-006+
-- PACT-006 CredentialInPath: detectar accountSid u otros identificadores sensibles en URL path
+### Candidatos NEXUM-006+
+- NEXUM-006 CredentialInPath: detectar accountSid u otros identificadores sensibles en URL path
 
 ### Próxima sesión: empezar por
-1. Investigar por qué PACT-001/002/003/005 no dispararon en Twilio — ¿falsos negativos o spec correcta?
+1. Investigar por qué NEXUM-001/002/003/005 no dispararon en Twilio — ¿falsos negativos o spec correcta?
 2. Fix TD-004 (score partido) y TD-005 (paths truncados) en el PDF
-3. Scan contra Notion API — objetivo: disparar PACT-002 y PACT-005
+3. Scan contra Notion API — objetivo: disparar NEXUM-002 y NEXUM-005
 
 ---
 
@@ -93,13 +93,13 @@ añadir lógica.
 ### Hallazgos reales — GitHub REST API
 | API | Regla | Severity | Count |
 |-----|-------|----------|-------|
-| github REST | PACT-001 AuthLeakageRisk | CRITICAL | 3 |
-| github REST | PACT-002 DestructiveAmbiguity | CRITICAL | 4 |
-| github REST | PACT-003 UnboundedScope | HIGH | 7 |
-| github REST | PACT-004 IdempotencyMissing | HIGH | 382 |
-| github REST | PACT-005 SchemaVolatility | MEDIUM | 8 |
+| github REST | NEXUM-001 AuthLeakageRisk | CRITICAL | 3 |
+| github REST | NEXUM-002 DestructiveAmbiguity | CRITICAL | 4 |
+| github REST | NEXUM-003 UnboundedScope | HIGH | 7 |
+| github REST | NEXUM-004 IdempotencyMissing | HIGH | 382 |
+| github REST | NEXUM-005 SchemaVolatility | MEDIUM | 8 |
 
-Objetivo cumplido: PACT-001, PACT-002 y PACT-005 dispararon por primera vez en una API real.
+Objetivo cumplido: NEXUM-001, NEXUM-002 y NEXUM-005 dispararon por primera vez en una API real.
 Las 5 reglas han disparado contra al menos una spec real.
 
 ### Decisiones de diseño
@@ -118,13 +118,13 @@ del breakdown sin tener que leer la tabla de detalle de Página 2.
 
 ### Observaciones de calidad post-scan
 
-**PACT-002 — falso positivo semántico (AN-005):**
+**NEXUM-002 — falso positivo semántico (AN-005):**
 `/installation/token DELETE` y `/user/interaction-limits DELETE` son revocaciones de token
 y resets de límite del caller autenticado, no borrados de recursos identificados. El engine
 detecta correctamente (DELETE sin parámetro de ID), pero `human_explanation` no captura la
 semántica de revocación. Candidato a mejorar la explicación, no la regla. → TD-010.
 
-**PACT-001 — inflación de severidad (AN-004):**
+**NEXUM-001 — inflación de severidad (AN-004):**
 Los 3 findings de GitHub Packages usan `"required": false`. El parámetro `?token=` es un
 fallback legacy; la auth primaria es por header. La regla detecta correctamente el vector,
 pero la severidad debería distinguir auth principal (CRITICAL) de auth legacy opcional
@@ -137,19 +137,19 @@ el lector ejecutivo. El agrupado por resource family en Página 2 queda pendient
 
 ### Deuda técnica nueva
 **TD-007:** Score display muestra "100/ 100" sin espacio antes de la barra — `LEFTPADDING=0` en la segunda columna de la score table elimina el gap visual  
-**TD-010:** PACT-002 `human_explanation` no distingue "borrado de recurso" vs "revocación/reset implícito al caller" — afecta legibilidad para un CISO sin contexto de la API  
-**TD-011:** PACT-001 no diferencia auth-principal-en-query (CRITICAL) de auth-legacy-opcional-en-query (debería ser HIGH) — puede inflar severidad  
+**TD-010:** NEXUM-002 `human_explanation` no distingue "borrado de recurso" vs "revocación/reset implícito al caller" — afecta legibilidad para un CISO sin contexto de la API  
+**TD-011:** NEXUM-001 no diferencia auth-principal-en-query (CRITICAL) de auth-legacy-opcional-en-query (debería ser HIGH) — puede inflar severidad  
 **TD-012:** PDF Página 2 con >100 findings de una sola regla es ilegible — agrupar por resource family mejoraría señal/ruido  
 
-### Candidatos PACT-006+
-- PACT-006 CredentialInPath: AccountSid u otros identificadores sensibles en URL path
-- PACT-007 LegacyAuthFallback: separar query-auth opcional/legacy de query-auth principal (surge de TD-011)
+### Candidatos NEXUM-006+
+- NEXUM-006 CredentialInPath: AccountSid u otros identificadores sensibles en URL path
+- NEXUM-007 LegacyAuthFallback: separar query-auth opcional/legacy de query-auth principal (surge de TD-011)
 
 ---
 
 ## Tech Debt
 
-### [TD-001] PACT-004 — Read-only MCP tool detection relies on name heuristic
+### [TD-001] NEXUM-004 — Read-only MCP tool detection relies on name heuristic
 
 **File:** `pact/core/rules/idempotency.py` — `_is_mcp_read_only()`  
 **Recorded:** 2026-05-10
@@ -247,4 +247,4 @@ Cosmético. Visible en cualquier score ≥ 10 (dos dígitos o más).
 
 ---
 
-Próxima sesión: fix TD-007 (score spacing), investigar TD-010/011 (reglas PACT-001/002), scan adicional.
+Próxima sesión: fix TD-007 (score spacing), investigar TD-010/011 (reglas NEXUM-001/002), scan adicional.

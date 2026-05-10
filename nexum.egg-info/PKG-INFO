@@ -1,0 +1,9 @@
+Metadata-Version: 2.4
+Name: nexum
+Version: 0.1.0
+Requires-Python: >=3.11
+Requires-Dist: pyyaml
+Requires-Dist: pydantic>=2
+Requires-Dist: typer
+Requires-Dist: reportlab
+Requires-Dist: pytest

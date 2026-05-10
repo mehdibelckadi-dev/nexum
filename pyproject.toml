@@ -3,19 +3,17 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pact"
+name = "nexum"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = ["pyyaml", "pydantic>=2", "typer", "reportlab", "pytest"]
 
 [project.scripts]
-pact = "pact.cli:app"
+nexum = "nexum.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["pact/tests"]
-
-
+testpaths = ["nexum/tests"]
