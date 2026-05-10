@@ -78,6 +78,75 @@ añadir lógica.
 
 ---
 
+## Session 2026-05-10 — Parte 3: GitHub REST API scan
+
+### Bloques completados
+| # | Artefacto | Estado |
+|---|-----------|--------|
+| A | Fixture real: pact/tests/fixtures/real_github.json (11.9 MB, 500+ endpoints) | ✅ |
+| B | Scan GitHub REST API: 404 findings, score 100/100 Tier 2 | ✅ |
+| C | PDF fix TD-004: score frame 3.2 cm → 4.5 cm, "100" sin wrap | ✅ |
+| D | PDF fix TD-005: `truncate_path(max_chars=80)` en Top Findings y tabla completa | ✅ |
+| E | PDF mejora: tabla "Findings by Rule" al final de Página 1 (Opción A con variante) | ✅ |
+| F | Append findings_log.jsonl: 5 rule summaries + 2 analysis notes (AN-004, AN-005) | ✅ |
+
+### Hallazgos reales — GitHub REST API
+| API | Regla | Severity | Count |
+|-----|-------|----------|-------|
+| github REST | PACT-001 AuthLeakageRisk | CRITICAL | 3 |
+| github REST | PACT-002 DestructiveAmbiguity | CRITICAL | 4 |
+| github REST | PACT-003 UnboundedScope | HIGH | 7 |
+| github REST | PACT-004 IdempotencyMissing | HIGH | 382 |
+| github REST | PACT-005 SchemaVolatility | MEDIUM | 8 |
+
+Objetivo cumplido: PACT-001, PACT-002 y PACT-005 dispararon por primera vez en una API real.
+Las 5 reglas han disparado contra al menos una spec real.
+
+### Decisiones de diseño
+
+**GitHub como target preferido sobre Notion:**
+La spec de GitHub REST API (11.9 MB, 500+ endpoints) cubre las 5 reglas y ofrece un
+volumen suficiente para validar el PDF bajo carga real. Notion API no estuvo disponible
+en el endpoint esperado (HTTP 404). GitHub se adopta como fixture canónico de integración.
+
+**Tabla "Findings by Rule" — Opción A con variante:**
+Se añade al final de Página 1, después de Top Findings y antes del salto de página.
+Condición de aparición: solo si más de una regla disparó (Twilio con una sola regla no
+la muestra). Columnas: Rule ID | Rule Name | Findings (right-aligned) | Severity.
+Ordenada por severidad CRITICAL → LOW. El objetivo es dar al CISO una vista ejecutiva
+del breakdown sin tener que leer la tabla de detalle de Página 2.
+
+### Observaciones de calidad post-scan
+
+**PACT-002 — falso positivo semántico (AN-005):**
+`/installation/token DELETE` y `/user/interaction-limits DELETE` son revocaciones de token
+y resets de límite del caller autenticado, no borrados de recursos identificados. El engine
+detecta correctamente (DELETE sin parámetro de ID), pero `human_explanation` no captura la
+semántica de revocación. Candidato a mejorar la explicación, no la regla. → TD-010.
+
+**PACT-001 — inflación de severidad (AN-004):**
+Los 3 findings de GitHub Packages usan `"required": false`. El parámetro `?token=` es un
+fallback legacy; la auth primaria es por header. La regla detecta correctamente el vector,
+pero la severidad debería distinguir auth principal (CRITICAL) de auth legacy opcional
+(HIGH). → TD-011.
+
+**PDF — volumen de findings:**
+404 findings saturan Página 2. El patrón `...and N more` (máx. 5 filas por regla) contiene
+el desbordamiento visual. La tabla "Findings by Rule" en Página 1 mitiga el problema para
+el lector ejecutivo. El agrupado por resource family en Página 2 queda pendiente. → TD-012.
+
+### Deuda técnica nueva
+**TD-007:** Score display muestra "100/ 100" sin espacio antes de la barra — `LEFTPADDING=0` en la segunda columna de la score table elimina el gap visual  
+**TD-010:** PACT-002 `human_explanation` no distingue "borrado de recurso" vs "revocación/reset implícito al caller" — afecta legibilidad para un CISO sin contexto de la API  
+**TD-011:** PACT-001 no diferencia auth-principal-en-query (CRITICAL) de auth-legacy-opcional-en-query (debería ser HIGH) — puede inflar severidad  
+**TD-012:** PDF Página 2 con >100 findings de una sola regla es ilegible — agrupar por resource family mejoraría señal/ruido  
+
+### Candidatos PACT-006+
+- PACT-006 CredentialInPath: AccountSid u otros identificadores sensibles en URL path
+- PACT-007 LegacyAuthFallback: separar query-auth opcional/legacy de query-auth principal (surge de TD-011)
+
+---
+
 ## Tech Debt
 
 ### [TD-001] PACT-004 — Read-only MCP tool detection relies on name heuristic
@@ -155,4 +224,27 @@ sin contexto previo de la API escaneada.
 
 ---
 
-Próxima sesión: scan contra API real → Notion o MCP GitHub → luego Bloque 9 PDF.
+### [TD-007] Score display — espacio faltante entre número y barra ("100/ 100")
+
+**File:** `pact/report/pdf_generator.py` — score `Table`, segunda columna  
+**Recorded:** 2026-05-10
+
+**Problem:**  
+La score table usa `LEFTPADDING=0` y `RIGHTPADDING=0` en todas las celdas. El texto de la
+segunda columna comienza con `/`, por lo que el resultado visual es `100/ 100` sin espacio
+entre el número y la barra. El ojo del lector lo percibe como una fracción mal formateada.
+
+**Root cause:**  
+`LEFTPADDING=0` elimina el gap natural entre columnas. La segunda columna debería tener al
+menos 4–6 pt de padding izquierdo para recrear el espacio visual.
+
+**Proposed fix:**  
+Añadir `("LEFTPADDING", (1, 0), (1, -1), 6)` en el TableStyle de la score table, o cambiar
+el literal de `"/ 100"` a `" / 100"` (espacio no-separable `&nbsp;` si se usa Paragraph markup).
+
+**Impact while unfixed:**  
+Cosmético. Visible en cualquier score ≥ 10 (dos dígitos o más).
+
+---
+
+Próxima sesión: fix TD-007 (score spacing), investigar TD-010/011 (reglas PACT-001/002), scan adicional.

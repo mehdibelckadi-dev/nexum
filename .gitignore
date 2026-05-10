@@ -1,1 +1,3 @@
 *.pdf
+pact/tests/fixtures/real_*.json
+pact/tests/fixtures/real_*.yaml

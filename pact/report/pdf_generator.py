@@ -209,6 +209,58 @@ def _page1(
         els.append(Paragraph(f.human_explanation, styles["finding_exp"]))
         els.append(Spacer(1, 0.22 * cm))
 
+    # Rule summary table — only when more than one rule fired
+    by_rule_summary: dict[str, dict] = {}
+    for f in findings:
+        if f.rule_id not in by_rule_summary:
+            by_rule_summary[f.rule_id] = {"rule_name": f.rule_name, "severity": f.severity, "count": 0}
+        by_rule_summary[f.rule_id]["count"] += 1
+
+    if len(by_rule_summary) > 1:
+        els.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CCCCCC")))
+        els.append(Spacer(1, 0.2 * cm))
+        els.append(Paragraph("Findings by Rule", styles["section_hdr"]))
+        els.append(Spacer(1, 0.15 * cm))
+
+        sorted_rules = sorted(
+            by_rule_summary.items(),
+            key=lambda kv: _SEVERITY_ORDER.get(kv[1]["severity"], 99),
+        )
+
+        data = [[
+            Paragraph("<b>Rule ID</b>",   styles["tbl_cell"]),
+            Paragraph("<b>Rule Name</b>", styles["tbl_cell"]),
+            Paragraph("<b>Findings</b>",  styles["tbl_cell"]),
+            Paragraph("<b>Severity</b>",  styles["tbl_cell"]),
+        ]]
+        for rule_id, info in sorted_rules:
+            hex_c = _SEVERITY_HEX.get(info["severity"], "#333333")
+            data.append([
+                Paragraph(rule_id, styles["tbl_cell"]),
+                Paragraph(info["rule_name"], styles["tbl_cell"]),
+                Paragraph(str(info["count"]), styles["tbl_cell"]),
+                Paragraph(f'<font color="{hex_c}">{info["severity"]}</font>', styles["tbl_cell"]),
+            ])
+
+        summary_tbl = Table(data, colWidths=[2.0 * cm, 5.5 * cm, 1.8 * cm, 2.5 * cm])
+        tbl_style = [
+            ("BACKGROUND",    (0, 0), (-1, 0),  colors.HexColor("#F0F0F0")),
+            ("FONTNAME",      (0, 0), (-1, 0),  "Helvetica-Bold"),
+            ("FONTSIZE",      (0, 0), (-1, -1), 8),
+            ("GRID",          (0, 0), (-1, -1), 0.25, colors.HexColor("#DDDDDD")),
+            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN",         (2, 0), (2, -1),  "RIGHT"),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 4),
+            ("TOPPADDING",    (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]
+        for i in range(1, len(data)):
+            if i % 2 == 0:
+                tbl_style.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#FAFAFA")))
+        summary_tbl.setStyle(TableStyle(tbl_style))
+        els.append(summary_tbl)
+
     return els
 
 
