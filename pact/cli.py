@@ -1,4 +1,4 @@
-"""CLI entry point — pact scan <file>"""
+"""CLI entry point — pact scan <file> / pact report <file>"""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ from .core import engine
 from .core.ingestor import PactIngestError, ingest
 from .core.scorer import calculate
 from .manifest.generator import generate
+from .report.pdf_generator import generate_pdf
 
 app = typer.Typer(
     name="pact",
@@ -61,6 +62,39 @@ def scan(
     typer.echo(bar)
     typer.echo()
     typer.echo(json.dumps(manifest, indent=2))
+
+
+@app.command()
+def report(
+    file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
+    output: Path = typer.Option(Path("report.pdf"), "--output", "-o", help="Output PDF path"),
+) -> None:
+    """Generate a PDF Security Report for a spec file."""
+    if not file.exists():
+        typer.echo(f"Error: file not found — '{file}'", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        spec = ingest(file)
+    except PactIngestError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    findings = engine.run(spec)
+    result   = calculate(findings)
+    manifest = generate(findings, result, str(file), spec)
+
+    elapsed = generate_pdf(findings, result, manifest, str(file), output)
+
+    tier_text  = _TIER_LABEL[result.tier]
+    tier_color = _TIER_COLOR[result.tier]
+
+    typer.echo(typer.style(f"PDF generated: {output}", fg=typer.colors.GREEN, bold=True))
+    typer.echo(f"  Score   : {result.score} / 100")
+    typer.echo(typer.style(f"  Tier    : {tier_text}", fg=tier_color, bold=True))
+    typer.echo(f"  Findings: {len(findings)}")
+    typer.echo(f"  Time    : {elapsed:.2f}s")
+    typer.echo(f"  Size    : {output.stat().st_size // 1024} KB")
 
 
 if __name__ == "__main__":

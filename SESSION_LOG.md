@@ -40,6 +40,43 @@ añadir lógica.
 
 ---
 
+## Session 2026-05-10 — Parte 2: Primera caza real + PDF
+
+### Bloques completados
+| # | Artefacto | Estado |
+|---|-----------|--------|
+| A | Fixture real: pact/tests/fixtures/real_twilio_v2010.json (1.8MB, válido) | ✅ |
+| B | Primer scan real: 62 findings PACT-004 HIGH, score 100/100 Tier 2 | ✅ |
+| C | data/findings_log.jsonl: 65 entradas (62 findings + 3 analysis_notes) | ✅ |
+| 9 | report/pdf_generator.py + comando pact report | ✅ |
+
+### Hallazgos reales encontrados
+| API | Regla disparada | Severity | Count |
+|-----|----------------|----------|-------|
+| twilio_v2010 | PACT-004 IdempotencyMissing | HIGH | 62 |
+
+### Reglas que NO dispararon en Twilio (investigar en Sesión 3)
+- PACT-001: Twilio usa HTTP Basic Auth + AccountSid en path, no query string
+- PACT-002: No hay endpoints de borrado sin ID específico en esta spec
+- PACT-003: No hay DELETE/PATCH sin filtros obligatorios detectados
+- PACT-005: No hay additionalProperties: true en schemas de mutación
+
+### Deuda técnica nueva
+**TD-002:** manifest generator no lee securitySchemes → required_headers queda vacío  
+**TD-003:** immutable_fields extractor no cubre convención x-twilio.pii ni readOnly en OpenAPI 3.0  
+**TD-004:** Score "100" se renderiza como "10 0" en reportlab — problema de frame/layout  
+**TD-005:** Paths largos en Top Findings sin truncado — necesita recorte con "..." al centro  
+
+### Candidatos PACT-006+
+- PACT-006 CredentialInPath: detectar accountSid u otros identificadores sensibles en URL path
+
+### Próxima sesión: empezar por
+1. Investigar por qué PACT-001/002/003/005 no dispararon en Twilio — ¿falsos negativos o spec correcta?
+2. Fix TD-004 (score partido) y TD-005 (paths truncados) en el PDF
+3. Scan contra Notion API — objetivo: disparar PACT-002 y PACT-005
+
+---
+
 ## Tech Debt
 
 ### [TD-001] PACT-004 — Read-only MCP tool detection relies on name heuristic
