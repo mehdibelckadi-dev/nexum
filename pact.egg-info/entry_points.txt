@@ -1,0 +1,2 @@
+[console_scripts]
+pact = pact.cli:app
