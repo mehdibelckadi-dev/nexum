@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexum Scanner</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 40px;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    .logo { font-size: 20px; font-weight: 700; letter-spacing: 3px; color: #111; }
+    .subtitle { color: #888; font-size: 13px; margin-top: 4px; }
+
+    .upload-zone {
+      margin-top: 28px;
+      border: 2px dashed #d1d5db;
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: #6366f1;
+      background: #f5f3ff;
+    }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-label { color: #374151; font-size: 14px; margin-top: 4px; }
+    .upload-hint  { color: #9ca3af; font-size: 12px; margin-top: 4px; }
+    .file-name    { color: #6366f1; font-size: 13px; font-weight: 500; margin-top: 10px; min-height: 18px; }
+
+    .btn {
+      width: 100%;
+      margin-top: 14px;
+      padding: 11px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, background .15s;
+    }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary  { background: #111; color: white; }
+    .btn-primary:not(:disabled):hover { background: #333; }
+    .btn-download { background: #f3f4f6; color: #111; }
+    .btn-download:not(:disabled):hover { background: #e5e7eb; }
+
+    .error {
+      display: none;
+      margin-top: 14px;
+      padding: 11px 14px;
+      background: #fee2e2;
+      border-radius: 8px;
+      color: #991b1b;
+      font-size: 13px;
+    }
+    .error.visible { display: block; }
+
+    .results { display: none; margin-top: 28px; }
+    .results.visible { display: block; }
+    hr { border: none; border-top: 1px solid #e5e7eb; margin-bottom: 24px; }
+
+    .score-row { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+    .score-num {
+      font-size: 68px;
+      font-weight: 800;
+      line-height: 1;
+      min-width: 90px;
+    }
+    .score-num.t0 { color: #16a34a; }
+    .score-num.t1 { color: #d97706; }
+    .score-num.t2 { color: #dc2626; }
+
+    .tier-label { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .tier-label.t0 { color: #16a34a; }
+    .tier-label.t1 { color: #d97706; }
+    .tier-label.t2 { color: #dc2626; }
+    .findings-count { color: #6b7280; font-size: 13px; }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      padding: 7px 10px;
+      background: #f9fafb;
+      color: #6b7280;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; color: #374151; }
+    tr:last-child td { border-bottom: none; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .CRITICAL { background: #fee2e2; color: #991b1b; }
+    .HIGH     { background: #ffedd5; color: #9a3412; }
+    .MEDIUM   { background: #fef9c3; color: #854d0e; }
+    .LOW      { background: #dcfce7; color: #166534; }
+
+    .path-cell {
+      font-family: monospace;
+      font-size: 12px;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">NEXUM</div>
+  <div class="subtitle">MCP / OpenAPI Security Scanner</div>
+
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" accept=".json,.yaml,.yml">
+    <div style="font-size:28px">📄</div>
+    <div class="upload-label">Click to select a spec file</div>
+    <div class="upload-hint">.json · .yaml · .yml</div>
+    <div class="file-name" id="fileName"></div>
+  </div>
+
+  <button class="btn btn-primary" id="scanBtn" onclick="runScan()" disabled>Scan</button>
+
+  <div class="error" id="errorBox"></div>
+
+  <div class="results" id="results">
+    <hr>
+    <div class="score-row">
+      <div class="score-num" id="scoreNum">—</div>
+      <div>
+        <div class="tier-label" id="tierLabel"></div>
+        <div class="findings-count" id="findingsCount"></div>
+      </div>
+    </div>
+
+    <div class="section-label">Top Findings</div>
+    <table>
+      <thead>
+        <tr><th>Rule</th><th>Severity</th><th>Method</th><th>Path</th></tr>
+      </thead>
+      <tbody id="findingsBody"></tbody>
+    </table>
+
+    <button class="btn btn-download" id="downloadBtn" onclick="downloadPdf()">↓ Download PDF Report</button>
+  </div>
+</div>
+
+<script>
+  let selectedFile = null;
+
+  const fileInput   = document.getElementById('fileInput');
+  const dropZone    = document.getElementById('dropZone');
+  const fileName    = document.getElementById('fileName');
+  const scanBtn     = document.getElementById('scanBtn');
+  const errorBox    = document.getElementById('errorBox');
+  const resultsDiv  = document.getElementById('results');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files.length) selectFile(fileInput.files[0]);
+  });
+
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) selectFile(e.dataTransfer.files[0]);
+  });
+
+  function selectFile(f) {
+    selectedFile = f;
+    fileName.textContent = f.name;
+    scanBtn.disabled = false;
+    errorBox.classList.remove('visible');
+    resultsDiv.classList.remove('visible');
+  }
+
+  async function runScan() {
+    if (!selectedFile) return;
+    scanBtn.disabled = true;
+    scanBtn.textContent = 'Scanning…';
+    errorBox.classList.remove('visible');
+    resultsDiv.classList.remove('visible');
+
+    try {
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      const res  = await fetch('/scan', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) { showError(data.detail || 'Scan failed.'); return; }
+      renderResults(data);
+    } catch (e) {
+      showError('Network error: ' + e.message);
+    } finally {
+      scanBtn.disabled = false;
+      scanBtn.textContent = 'Scan';
+    }
+  }
+
+  function renderResults(data) {
+    const tc = 't' + data.tier;
+
+    const sn = document.getElementById('scoreNum');
+    sn.textContent = data.score;
+    sn.className = 'score-num ' + tc;
+
+    const tl = document.getElementById('tierLabel');
+    tl.textContent = data.tier_label;
+    tl.className = 'tier-label ' + tc;
+
+    document.getElementById('findingsCount').textContent =
+      data.findings_count + ' finding' + (data.findings_count !== 1 ? 's' : '') + ' total';
+
+    const tbody = document.getElementById('findingsBody');
+    tbody.innerHTML = '';
+    if (!data.top_findings.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#9ca3af;padding:16px">No findings</td></tr>';
+    } else {
+      data.top_findings.forEach(f => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${f.rule_id}</td>
+          <td><span class="badge ${f.severity}">${f.severity}</span></td>
+          <td>${f.method}</td>
+          <td class="path-cell" title="${f.path}">${f.path}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+    resultsDiv.classList.add('visible');
+  }
+
+  async function downloadPdf() {
+    if (!selectedFile) return;
+    downloadBtn.disabled = true;
+    downloadBtn.textContent = 'Generating…';
+    try {
+      const fd = new FormData();
+      fd.append('file', selectedFile);
+      const res = await fetch('/report', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const data = await res.json();
+        showError(data.detail || 'PDF generation failed.');
+        return;
+      }
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = selectedFile.name.replace(/\.[^.]+$/, '') + '_nexum.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      showError('Network error: ' + e.message);
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = '↓ Download PDF Report';
+    }
+  }
+
+  function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('visible'); }
+</script>
+</body>
+</html>
