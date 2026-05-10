@@ -117,6 +117,20 @@ def _select_top(findings: list[Finding]) -> list[Finding]:
 
 
 # ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def truncate_path(path: str, max_chars: int = 80) -> str:
+    """Center-truncate a path so the tail (most specific segment) is preserved."""
+    if len(path) <= max_chars:
+        return path
+    keep = max_chars - 3  # reserve 3 chars for "..."
+    head = keep // 2
+    tail = keep - head
+    return path[:head] + "..." + path[-tail:]
+
+
+# ---------------------------------------------------------------------------
 # Page 1
 # ---------------------------------------------------------------------------
 
@@ -148,7 +162,7 @@ def _page1(
     score_tbl = Table(
         [[Paragraph(str(result.score), styles["score_num"]),
           Paragraph("/ 100", styles["score_denom"])]],
-        colWidths=[3.2 * cm, 3 * cm],
+        colWidths=[4.5 * cm, 3 * cm],
     )
     score_tbl.setStyle(TableStyle([
         ("VALIGN",        (0, 0), (-1, -1), "BOTTOM"),
@@ -191,7 +205,7 @@ def _page1(
             f'[{f.rule_id}] &nbsp;<font color="{hex_c}">{f.severity}</font>',
             id_sty,
         ))
-        els.append(Paragraph(f.path, styles["finding_path"]))
+        els.append(Paragraph(truncate_path(f.path), styles["finding_path"]))
         els.append(Paragraph(f.human_explanation, styles["finding_exp"]))
         els.append(Spacer(1, 0.22 * cm))
 
@@ -247,7 +261,7 @@ def _page2(
         for f in shown:
             sev_hex = _SEVERITY_HEX.get(f.severity, "#333333")
             data.append([
-                Paragraph(f.path, styles["tbl_cell"]),
+                Paragraph(truncate_path(f.path), styles["tbl_cell"]),
                 Paragraph(f.method, styles["tbl_cell"]),
                 Paragraph(f'<font color="{sev_hex}">{f.severity}</font>', styles["tbl_cell"]),
             ])

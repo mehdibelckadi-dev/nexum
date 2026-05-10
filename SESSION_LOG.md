@@ -64,8 +64,9 @@ añadir lógica.
 ### Deuda técnica nueva
 **TD-002:** manifest generator no lee securitySchemes → required_headers queda vacío  
 **TD-003:** immutable_fields extractor no cubre convención x-twilio.pii ni readOnly en OpenAPI 3.0  
-**TD-004:** Score "100" se renderiza como "10 0" en reportlab — problema de frame/layout  
-**TD-005:** Paths largos en Top Findings sin truncado — necesita recorte con "..." al centro  
+**TD-004:** Score "100" se renderiza como "10 0" en reportlab — problema de frame/layout — **fixed**  
+**TD-005:** Paths largos en Top Findings sin truncado — necesita recorte con "..." al centro — **fixed**  
+**TD-006:** `truncate_path` corta en posición de carácter, no en límite de segmento `/` — el resultado (`...ts/`) carece de contexto para un lector sin conocimiento de la API  
 
 ### Candidatos PACT-006+
 - PACT-006 CredentialInPath: detectar accountSid u otros identificadores sensibles en URL path
@@ -112,6 +113,45 @@ an `idempotency_key` property as a secondary signal.
 Low. The heuristic under-flags (missed findings), not over-flags (false positives).
 A missed idempotency finding is surfaced as HIGH severity, so any slip will be visible
 once the scorer is in place.
+
+---
+
+### [TD-006] `truncate_path` — corte en posición de carácter, no en límite de segmento
+
+**File:** `pact/report/pdf_generator.py` — `truncate_path()`  
+**Recorded:** 2026-05-10
+
+**Problem:**  
+La función actual divide el string en `head = keep // 2` y `tail = keep - head` caracteres,
+sin considerar dónde caen los separadores `/`. El resultado puede partir un segmento de path
+a la mitad, produciendo tokens sin significado como `...ts/` o `...Sid}/`:
+
+```
+/2010-04-01/Accounts/{AccountSid}/SIP/...ts/{CredentialListSid}/Credentials.json
+```
+
+Un CISO sin conocimiento de la API de Twilio no puede reconstruir la jerarquía del recurso
+a partir del fragmento visible.
+
+**Root cause:**  
+Truncado posicional puro. No hay búsqueda de `/` ni hacia la izquierda del punto de corte
+del head ni hacia la derecha del punto de corte del tail.
+
+**Proposed fix:**  
+Tras calcular `head` y `tail`, buscar el `/` más cercano hacia la izquierda del punto `head`
+y el `/` más cercano hacia la derecha del punto `len(path) - tail`, de modo que el corte
+coincida siempre con un límite de segmento. Si no existe un `/` en un radio razonable
+(p.ej. 10 chars), mantener el corte posicional como fallback.
+
+Resultado esperado para el mismo path:
+```
+/2010-04-01/Accounts/{AccountSid}/.../CredentialLists/{CredentialListSid}/Credentials.json
+```
+
+**Impact while unfixed:**  
+Cosmético. El path completo está disponible en el JSON del finding. El truncado al centro
+cumple el objetivo primario (no desbordar la columna); solo afecta legibilidad para lectores
+sin contexto previo de la API escaneada.
 
 ---
 
