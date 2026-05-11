@@ -1,3 +1,13 @@
+# Real API fixtures (too large and third-party IP)
+nexum/tests/fixtures/real_*.json
+nexum/tests/fixtures/real_*.yaml
+
+# Sensitive data
+data/findings_log.jsonl
+
+# Generated files
 *.pdf
-pact/tests/fixtures/real_*.json
-pact/tests/fixtures/real_*.yaml
+.env
+__pycache__/
+*.egg-info/
+.venv/

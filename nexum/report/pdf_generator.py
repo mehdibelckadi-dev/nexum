@@ -13,10 +13,12 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (
+    BaseDocTemplate,
+    Frame,
     HRFlowable,
     PageBreak,
+    PageTemplate,
     Paragraph,
-    SimpleDocTemplate,
     Spacer,
     Table,
     TableStyle,
@@ -50,8 +52,51 @@ _TIER_COLOR: dict[int, colors.Color] = {k: colors.HexColor(v) for k, v in _TIER_
 _SEVERITY_ORDER: dict[str, int] = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 _PAGE_W, _PAGE_H = A4
-_MARGIN   = 2.0 * cm
-_INNER_W  = _PAGE_W - 2 * _MARGIN
+_MARGIN       = 2.0 * cm
+_INNER_W      = _PAGE_W - 2 * _MARGIN
+_FOOTER_HEIGHT = 1.5 * cm  # space reserved at page bottom for legal disclaimer
+
+_DISCLAIMER_LINE1 = (
+    "This report is based on static analysis of the publicly available API specification."
+    " No live system was tested."
+)
+_DISCLAIMER_LINE2 = (
+    "Findings represent potential risks in the spec design,"
+    " not confirmed vulnerabilities in a running system."
+)
+
+
+# ---------------------------------------------------------------------------
+# Footer page template — draws legal disclaimer on every page via afterDrawPage
+# (not onPage, which has inconsistent behaviour on multi-page docs in ReportLab)
+# ---------------------------------------------------------------------------
+
+class _FooterPageTemplate(PageTemplate):
+    """PageTemplate that renders a legal disclaimer footer outside the main Frame."""
+
+    def afterDrawPage(self, canvas, doc):
+        canvas.saveState()
+
+        page_w = doc.pagesize[0]
+        x_left = doc.leftMargin
+        x_right = page_w - doc.rightMargin
+        # Top of the reserved footer band sits at the bottom of the main Frame.
+        y_band_top = doc.bottomMargin + _FOOTER_HEIGHT
+
+        # Separator line — 0.5pt, light grey
+        sep_y = y_band_top - 0.15 * cm
+        canvas.setStrokeColor(colors.Color(0.75, 0.75, 0.75))
+        canvas.setLineWidth(0.5)
+        canvas.line(x_left, sep_y, x_right, sep_y)
+
+        # Disclaimer text — two centered lines, 7pt, RGB(128,128,128)
+        canvas.setFont("Helvetica", 7)
+        canvas.setFillColor(colors.Color(128 / 255, 128 / 255, 128 / 255))
+        cx = page_w / 2
+        canvas.drawCentredString(cx, sep_y - 0.35 * cm, _DISCLAIMER_LINE1)
+        canvas.drawCentredString(cx, sep_y - 0.66 * cm, _DISCLAIMER_LINE2)
+
+        canvas.restoreState()
 
 
 # ---------------------------------------------------------------------------
@@ -384,7 +429,7 @@ def generate_pdf(
     t0 = time.perf_counter()
 
     styles = _build_styles()
-    doc = SimpleDocTemplate(
+    doc = BaseDocTemplate(
         str(output_path),
         pagesize=A4,
         leftMargin=_MARGIN,
@@ -394,6 +439,22 @@ def generate_pdf(
         title="Nexum Security Scan Report",
         author="Nexum Scanner",
     )
+
+    # Main Frame: starts above the footer band so content never overlaps the footer.
+    main_frame = Frame(
+        x1=_MARGIN,
+        y1=_MARGIN + _FOOTER_HEIGHT,
+        width=_INNER_W,
+        height=_PAGE_H - 2 * _MARGIN - _FOOTER_HEIGHT,
+        leftPadding=0,
+        bottomPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        id="main",
+    )
+    doc.addPageTemplates([
+        _FooterPageTemplate(id="standard", frames=[main_frame], pagesize=A4)
+    ])
 
     story = (
         _page1(findings, result, Path(source_file).name, styles)

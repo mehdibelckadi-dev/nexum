@@ -71,10 +71,21 @@ evidence_snippet: str  # fragmento exacto del JSON/YAML
 human_explanation: str
 guardrail_suggestion: str
 
-## Risk Score
+
+## Risk Score — Two Distinct Concepts
+
+**Scanner Risk Score (static — implemented today):**
+Score = min(100, Σ points per severity)
 CRITICAL=25, HIGH=10, MEDIUM=5, LOW=1
-Score = min(100, suma de puntos)
 Tier 0: 0-30 | Tier 1: 31-60 | Tier 2: 61-100
+This is what the scanner produces. This is what appears in the PDF.
+
+**Runtime Block Score (Layer 1 — not yet implemented):**
+Score = (Impact × Scope) - Reversibility
+Determines whether the SDK blocks a call at runtime.
+Sprint 2+. Does not exist in any current output.
+
+Never mix these two in the same explanation or in the same code path.
 
 ## Trust Manifest draft
 {
@@ -101,8 +112,43 @@ Página 2: Tabla completa de findings + guardrail_suggestions + "...and N more" 
 TD-001: Heurístico frágil en NEXUM-004 — tools como remove_record o purge_data
 no se detectan. Solución futura: x-nexum-intent annotation en Trust Manifest v1.1.
 
+TD-005: MCP annotations (readOnlyHint, idempotentHint, destructiveHint) are discarded
+by _normalize_mcp in ingestor.py. Rules cannot consult them, producing false positives
+in NEXUM-004 (e.g. write_file and create_directory fire despite idempotentHint:true,
+directory_tree fires despite readOnlyHint:true). Fix: propagate annotations as x-mcp-*
+extensions on the operation object during normalization so rules can filter by them.
+
 ## Lo que NO hacer
 - No construir Sidecar, Proxy ni SDK
 - No conectar a servicios externos
 - No integrar LLM en ninguna función
 - No cambiar IDs de reglas a PACT-XXX (el nombre correcto es NEXUM-XXX)
+- No mezclar Scanner Risk Score con Runtime Block Score en el mismo output
+- No implementar candidatos NEXUM-00X que requieran NLP o LLM para detección
+
+## Deuda Técnica Activa
+
+**TD-001** — Heurístico frágil en NEXUM-004 (existente)
+
+**TD-005** — RESUELTO. MCP annotations propagadas al normalizador.
+
+**TD-006** — write_query gap (existente)
+
+**TD-007 — git_branch falso positivo estructural:**
+Tool: git_branch en mcp-server-git Python
+Causa: token "branch" ambiguo entre list (lectura) y create (escritura)
+No resoluble con heurístico sin romper git_create_branch
+Fix correcto: readOnlyHint:true en servidor Python, o known_false_positives 
+en Trust Manifest
+Sprint 2: Opción C — campo known_false_positives en manifest generator
+
+**TD-008 — git_reset human_explanation corregida (RESUELTO):**
+Premisa original incorrecta: el tool NO expone --hard.
+repo.index.reset() = git reset HEAD --mixed. Working directory intacto.
+Riesgo real: pérdida de toda la staging area acumulada por git_add calls
+previos, sin posibilidad de detectar ejecución duplicada via Idempotency-Key.
+No es candidato a NEXUM-002 — método HTTP normalizado es POST, no DELETE.
+Fix aplicado: dict _OPERATION_EXPLANATIONS en idempotency.py con texto
+específico para git_reset. Sin cambio de lógica de detección.
+TD-009 registrado: mover _OPERATION_EXPLANATIONS a archivo externo
+si supera 5 entradas.

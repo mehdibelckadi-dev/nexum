@@ -301,6 +301,194 @@ class TestIdempotencyMissing:
         assert read_findings == []
 
 
+class TestIdempotencyMissingMcpAnnotations:
+    """NEXUM-004 behaviour driven by real MCP protocol annotations.
+
+    Annotation values are taken verbatim from @modelcontextprotocol/server-filesystem
+    v0.6.3 (tools/list response). Each test documents the exact precedence rule
+    being exercised so the intent is clear without the original conversation.
+    """
+
+    rule = IdempotencyMissing()
+
+    def _mcp_spec(self, tool_name: str, annotations: dict) -> dict:
+        """Build a normalised spec identical to what _normalize_mcp produces."""
+        relevant = {"readOnlyHint", "idempotentHint", "destructiveHint", "openWorldHint"}
+        op: dict = {
+            "operationId": tool_name,
+            "description": "",
+            "parameters": [],
+            "requestBody": {"content": {"application/json": {"schema": {}}}},
+            "x-mcp-tool": True,
+        }
+        filtered = {k: v for k, v in annotations.items() if k in relevant}
+        if filtered:
+            op["x-mcp-annotations"] = filtered
+        return {
+            "info": {}, "components": {}, "_source_format": "mcp",
+            "paths": {f"/tools/{tool_name}": {"post": op}},
+        }
+
+    def test_write_file_idempotent_hint_not_flagged(self):
+        """write_file: idempotentHint=true, destructiveHint=true → no finding.
+
+        idempotentHint takes precedence: a retry writes the same content and
+        reaches the same state, so no Idempotency-Key is needed.
+        """
+        spec = self._mcp_spec("write_file", {
+            "readOnlyHint": False, "idempotentHint": True, "destructiveHint": True,
+        })
+        assert self.rule.check(spec) == []
+
+    def test_directory_tree_readonly_hint_not_flagged(self):
+        """directory_tree: readOnlyHint=true → no finding.
+
+        readOnlyHint signals the tool never mutates state; NEXUM-004 only
+        applies to operations that can change server-side data.
+        """
+        spec = self._mcp_spec("directory_tree", {"readOnlyHint": True})
+        assert self.rule.check(spec) == []
+
+    def test_edit_file_destructive_not_idempotent_flagged(self):
+        """edit_file: idempotentHint=false, destructiveHint=true → NEXUM-004 finding.
+
+        Neither skip condition is met: the operation is not read-only and a
+        retry can apply the same edit twice, corrupting the file.
+        """
+        spec = self._mcp_spec("edit_file", {
+            "readOnlyHint": False, "idempotentHint": False, "destructiveHint": True,
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+        assert findings[0].path == "/tools/edit_file"
+
+    def test_destructive_only_hint_still_flagged(self):
+        """destructiveHint=true with no idempotentHint key present → NEXUM-004 finding.
+
+        Validates that destructiveHint alone does not suppress the finding.
+        Missing idempotentHint is not the same as idempotentHint=true; the
+        rule must not treat absence of a hint as an implicit skip signal.
+        """
+        spec = self._mcp_spec("purge_cache", {"destructiveHint": True})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+        assert findings[0].path == "/tools/purge_cache"
+
+    def test_slack_reply_to_thread_flagged(self):
+        """slack_reply_to_thread → must generate NEXUM-004 finding.
+
+        Token-based matching splits on '_': tokens = {'slack', 'reply', 'to', 'thread'}.
+        None of those equal a _READ_KEYWORDS entry, so the tool is not suppressed.
+        Old substring matching incorrectly suppressed this because 'read' is a
+        substring of 'thread'.
+        """
+        spec = self._mcp_spec("slack_reply_to_thread", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+        assert findings[0].path == "/tools/slack_reply_to_thread"
+
+    def test_slack_read_messages_not_flagged(self):
+        """slack_read_messages → must NOT generate finding.
+
+        Tokens = {'slack', 'read', 'messages'}. 'read' is an exact token match
+        in _READ_KEYWORDS, so the tool is correctly suppressed.
+        """
+        spec = self._mcp_spec("slack_read_messages", {})
+        assert self.rule.check(spec) == []
+
+    def test_write_query_flagged(self):
+        """write_query → must generate NEXUM-004 finding.
+
+        SQLite mutation: accepts DELETE, UPDATE, INSERT. 'query' removed from
+        _READ_KEYWORDS because it is not a reliable read-only indicator.
+        """
+        spec = self._mcp_spec("write_query", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+
+    def test_delete_query_flagged(self):
+        """delete_query → must generate NEXUM-004 finding.
+
+        'query' as a standalone token must not suppress a tool whose name
+        also contains an explicit mutation verb.
+        """
+        spec = self._mcp_spec("delete_query", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+
+    def test_search_query_not_flagged(self):
+        """search_query → must NOT generate finding.
+
+        Tokens = {'search', 'query'}. 'search' is in _READ_KEYWORDS, so the
+        tool is suppressed regardless of 'query' being present or absent.
+        """
+        spec = self._mcp_spec("search_query", {})
+        assert self.rule.check(spec) == []
+
+    def test_exec_query_flagged(self):
+        """exec_query → must generate NEXUM-004 finding.
+
+        'exec' is not in _READ_KEYWORDS and 'query' no longer suppresses.
+        An execution tool is a mutation by nature.
+        """
+        spec = self._mcp_spec("exec_query", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+
+    def test_git_status_not_flagged(self):
+        """git_status → must NOT generate finding.
+
+        Tokens = {'git', 'status'}. 'status' is now in _READ_KEYWORDS.
+        """
+        spec = self._mcp_spec("git_status", {})
+        assert self.rule.check(spec) == []
+
+    def test_git_diff_not_flagged(self):
+        """git_diff → must NOT generate finding.
+
+        Tokens = {'git', 'diff'}. 'diff' is now in _READ_KEYWORDS.
+        """
+        spec = self._mcp_spec("git_diff", {})
+        assert self.rule.check(spec) == []
+
+    def test_git_log_not_flagged(self):
+        """git_log → must NOT generate finding.
+
+        Tokens = {'git', 'log'}. 'log' is now in _READ_KEYWORDS.
+        """
+        spec = self._mcp_spec("git_log", {})
+        assert self.rule.check(spec) == []
+
+    def test_git_create_branch_flagged(self):
+        """git_create_branch → must generate NEXUM-004 finding.
+
+        Tokens = {'git', 'create', 'branch'}. 'branch' is intentionally absent
+        from _READ_KEYWORDS: adding it would suppress git_create_branch, which
+        is a write operation. None of the three tokens match a read keyword,
+        so the finding is correctly generated.
+        """
+        spec = self._mcp_spec("git_create_branch", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+
+    def test_git_reset_explanation_mentions_staging_area(self):
+        """git_reset NEXUM-004 finding must use the per-operation override, not
+        the generic template. 'staging area' appears only in the override text —
+        its presence confirms _OPERATION_EXPLANATIONS is wired correctly.
+        """
+        spec = self._mcp_spec("git_reset", {})
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert "staging area" in findings[0].human_explanation
+
+
 # ---------------------------------------------------------------------------
 # NEXUM-005  SchemaVolatility
 # ---------------------------------------------------------------------------

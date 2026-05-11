@@ -8,6 +8,10 @@ from typing import Any
 
 import yaml
 
+_MCP_ANNOTATION_KEYS: frozenset[str] = frozenset({
+    "readOnlyHint", "idempotentHint", "destructiveHint", "openWorldHint",
+})
+
 
 class NexumIngestError(Exception):
     """Raised when a spec file cannot be parsed or its format is not recognised."""
@@ -87,19 +91,24 @@ def _normalize_mcp(raw: dict[str, Any]) -> dict[str, Any]:
         name: str = tool.get("name", "unknown")
         input_schema: dict[str, Any] = tool.get("inputSchema", {})
 
-        paths[f"/tools/{name}"] = {
-            "post": {
-                "operationId": name,
-                "description": tool.get("description", ""),
-                "parameters": [],
-                "requestBody": {
-                    "content": {
-                        "application/json": {"schema": input_schema}
-                    }
-                },
-                "x-mcp-tool": True,
-            }
+        annotations = {
+            k: v for k, v in tool.get("annotations", {}).items()
+            if k in _MCP_ANNOTATION_KEYS
         }
+        operation: dict[str, Any] = {
+            "operationId": name,
+            "description": tool.get("description", ""),
+            "parameters": [],
+            "requestBody": {
+                "content": {
+                    "application/json": {"schema": input_schema}
+                }
+            },
+            "x-mcp-tool": True,
+        }
+        if annotations:
+            operation["x-mcp-annotations"] = annotations
+        paths[f"/tools/{name}"] = {"post": operation}
 
         if input_schema:
             schemas[name] = input_schema
