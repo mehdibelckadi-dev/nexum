@@ -11,3 +11,11 @@ data/findings_log.jsonl
 __pycache__/
 *.egg-info/
 .venv/
+
+# macOS metadata
+.DS_Store
+nexum/.DS_Store
+
+# Scan input files in repo root (third-party specs, not committed fixtures)
+/*.json
+enterprise_rest_api_public.json
