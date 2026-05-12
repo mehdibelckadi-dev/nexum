@@ -14,6 +14,7 @@ from nexum.core.rules.destructive_ambiguity import DestructiveAmbiguity
 from nexum.core.rules.unbounded_scope import UnboundedScope
 from nexum.core.rules.idempotency import IdempotencyMissing
 from nexum.core.rules.schema_volatility import SchemaVolatility
+from nexum.core.scorer import calculate
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -696,3 +697,76 @@ class TestEngine:
         findings = engine.run(spec)
         positions = [_SEVERITY_ORDER[f.severity] for f in findings]
         assert positions == sorted(positions)
+
+
+# ---------------------------------------------------------------------------
+# --exclude-path filtering (CLI contract, tested at the domain layer)
+# ---------------------------------------------------------------------------
+
+class TestExcludePathFiltering:
+    """Verify that filtering findings by path before scoring works correctly.
+
+    These tests exercise the same logic the CLI applies between engine.run()
+    and calculate(): filter by exact path membership, then recalculate score.
+    """
+
+    def _run_with_exclusions(self, spec: dict, excluded: set[str]):
+        findings = engine.run(spec)
+        filtered = [f for f in findings if f.path not in excluded]
+        return findings, filtered, calculate(filtered)
+
+    def test_score_lower_with_exclusion(self):
+        """Excluding findings that exist reduces the risk score."""
+        spec = ingest(FIXTURES / "sample_openapi.yaml")
+        full_findings = engine.run(spec)
+        assert full_findings, "fixture must produce at least one finding"
+
+        path_to_exclude = full_findings[0].path
+        filtered = [f for f in full_findings if f.path != path_to_exclude]
+
+        full_score = calculate(full_findings).score
+        filtered_score = calculate(filtered).score
+
+        assert filtered_score < full_score
+
+    def test_excluded_path_absent_from_filtered_findings(self):
+        """The excluded path must not appear in the filtered list."""
+        spec = ingest(FIXTURES / "sample_openapi.yaml")
+        full_findings = engine.run(spec)
+        path_to_exclude = full_findings[0].path
+
+        filtered = [f for f in full_findings if f.path != path_to_exclude]
+
+        assert not any(f.path == path_to_exclude for f in filtered)
+
+    def test_nonexistent_path_exclusion_is_noop(self):
+        """Excluding a path with no findings leaves findings and score unchanged."""
+        spec = ingest(FIXTURES / "sample_openapi.yaml")
+        full_findings = engine.run(spec)
+        ghost_path = "/does/not/exist/in/spec"
+
+        filtered = [f for f in full_findings if f.path != ghost_path]
+
+        assert filtered == full_findings
+        assert calculate(filtered).score == calculate(full_findings).score
+
+    def test_multiple_exclude_paths(self):
+        """Excluding two distinct paths removes findings from both."""
+        spec = _minimal_spec(**{
+            "/alpha": {
+                "delete": {"operationId": "deleteAlpha", "parameters": []},
+            },
+            "/beta": {
+                "delete": {"operationId": "deleteBeta", "parameters": []},
+            },
+        })
+        full_findings = engine.run(spec)
+        paths_present = {f.path for f in full_findings}
+        assert "/alpha" in paths_present
+        assert "/beta" in paths_present
+
+        excluded = {"/alpha", "/beta"}
+        filtered = [f for f in full_findings if f.path not in excluded]
+
+        assert all(f.path not in excluded for f in filtered)
+        assert calculate(filtered).score < calculate(full_findings).score

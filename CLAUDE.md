@@ -152,3 +152,27 @@ Fix aplicado: dict _OPERATION_EXPLANATIONS en idempotency.py con texto
 específico para git_reset. Sin cambio de lógica de detección.
 TD-009 registrado: mover _OPERATION_EXPLANATIONS a archivo externo
 si supera 5 entradas.
+
+**TD-009: Execution Frequency Weighting — ponderar findings por probabilidad de uso real del endpoint. Reduce el ruido de cobertura en APIs grandes.
+
+
+**TD-010 — NEXUM-001 no distingue credenciales de IDs de dominio:**
+TD-010 es ahora Sprint 2 bloqueante
+TD-010 afecta a tres specs importantes:
+
+Enterprise REST: 3 CRITICAL falsos positivos por token como restore identifier
+Stripe: CRITICAL falsos positivos por session como ID de objeto
+NetBox: 2 falsos negativos (auth_key, auth_psk no detectados)
+
+El fix correcto para TD-010 requiere que NEXUM-001 distinga entre:
+
+Parámetros que autentican al caller → credencial real → finding
+Parámetros que identifican un objeto → ID de dominio → skip
+
+Sin LLM, la única forma determinista es una combinación de:
+
+Verificar si el parámetro está en el contexto de autenticación (header Authorization, campo security)
+Lista de patrones de nombre que son IDs de dominio conocidos (restore_token, session_id)
+Verificar si el parámetro tiene format: password o está marcado como sensible en el schema
+
+Domain-specific manual_review_required — el generador debe producir campos de review específicos del dominio detectado (infraestructura cloud, pagos, mensajería) en lugar de los tres campos genéricos actuales

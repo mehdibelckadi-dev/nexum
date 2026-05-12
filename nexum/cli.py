@@ -68,6 +68,9 @@ def scan(
 def report(
     file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
     output: Path = typer.Option(Path("report.pdf"), "--output", "-o", help="Output PDF path"),
+    exclude_path: list[str] = typer.Option(
+        [], "--exclude-path", help="Exclude all findings at this exact path (repeatable)",
+    ),
 ) -> None:
     """Generate a PDF Security Report for a spec file."""
     if not file.exists():
@@ -81,10 +84,24 @@ def report(
         raise typer.Exit(code=1)
 
     findings = engine.run(spec)
+
+    excluded: set[str] = set(exclude_path)
+    if excluded:
+        before   = len(findings)
+        findings = [f for f in findings if f.path not in excluded]
+        typer.echo(
+            f"Excluded {before - len(findings)} finding(s) via --exclude-path: "
+            f"{', '.join(sorted(excluded))}",
+            err=True,
+        )
+
     result   = calculate(findings)
     manifest = generate(findings, result, str(file), spec)
 
-    elapsed = generate_pdf(findings, result, manifest, str(file), output)
+    elapsed = generate_pdf(
+        findings, result, manifest, str(file), output,
+        excluded_paths=sorted(excluded),
+    )
 
     tier_text  = _TIER_LABEL[result.tier]
     tier_color = _TIER_COLOR[result.tier]

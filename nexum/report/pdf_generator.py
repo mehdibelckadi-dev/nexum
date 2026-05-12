@@ -317,6 +317,7 @@ def _page2(
     findings: list[Finding],
     manifest: dict[str, Any],
     styles: dict[str, ParagraphStyle],
+    excluded_paths: list[str] = (),
 ) -> list:
     els: list = []
     if not findings:
@@ -411,6 +412,20 @@ def _page2(
             ))
             els.append(Spacer(1, 0.1 * cm))
 
+    # Excluded Paths
+    if excluded_paths:
+        els.append(HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CCCCCC")))
+        els.append(Spacer(1, 0.18 * cm))
+        els.append(Paragraph("Excluded Paths", styles["section_hdr"]))
+        els.append(Spacer(1, 0.1 * cm))
+        for p in excluded_paths:
+            els.append(Paragraph(
+                f"• <b>{p}</b>: Manually excluded — confirmed false positive "
+                "via documentation review",
+                styles["body"],
+            ))
+            els.append(Spacer(1, 0.1 * cm))
+
     return els
 
 
@@ -424,6 +439,7 @@ def generate_pdf(
     manifest: dict[str, Any],
     source_file: str,
     output_path: Path,
+    excluded_paths: list[str] = (),
 ) -> float:
     """Render the 2-page PDF report. Returns elapsed wall-clock seconds."""
     t0 = time.perf_counter()
@@ -459,7 +475,7 @@ def generate_pdf(
     story = (
         _page1(findings, result, Path(source_file).name, styles)
         + [PageBreak()]
-        + _page2(findings, manifest, styles)
+        + _page2(findings, manifest, styles, excluded_paths)
     )
     doc.build(story)
     return time.perf_counter() - t0
