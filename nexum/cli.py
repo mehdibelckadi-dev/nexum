@@ -52,16 +52,16 @@ def scan(
 
     width = 48
     bar = "─" * width
-    typer.echo(bar)
     score_line = f"  Nexum Risk Score : {result.score:>3} / 100"
     tier_line  = f"  Risk Tier        : {tier_text}"
     src_line   = f"  Source           : {file.name}"
-    typer.echo(typer.style(score_line, fg=tier_color, bold=True))
-    typer.echo(typer.style(tier_line,  fg=tier_color, bold=True))
-    typer.echo(src_line)
-    typer.echo(bar)
-    typer.echo()
-    typer.echo(json.dumps(manifest, indent=2))
+    typer.echo(bar,                                               err=True)
+    typer.echo(typer.style(score_line, fg=tier_color, bold=True), err=True)
+    typer.echo(typer.style(tier_line,  fg=tier_color, bold=True), err=True)
+    typer.echo(src_line,                                          err=True)
+    typer.echo(bar,                                               err=True)
+    typer.echo("",                                                err=True)
+    print(json.dumps(manifest, indent=2))
 
 
 @app.command()
