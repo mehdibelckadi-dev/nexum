@@ -304,3 +304,14 @@ PDFs pendientes: DigitalOcean (regenerar con --exclude-path post TD-011)
 3. Ejecutar Adversarial Validator v2.0 contra PDF regenerado
 4. Republicar post de X con score y copy corregidos
 5. Iniciar outreach personalizado con FEEDBACK_LOG
+
+---
+
+## Deuda Técnica — Registro de TD-012
+
+**TD-012 — NEXUM-003 debe excluir singletons por convención:**
+Paths que terminan en `/default` o `/primary` no son colecciones.
+NEXUM-003 (UnboundedScope) no aplica semánticamente — existe un único
+recurso con ese nombre, no una colección afectable de forma masiva.
+Fix aplicado (2026-05-12): `_SINGLETON_TERMINAL_SEGMENTS` en `unbounded_scope.py`.
+Frozenset extensible: añadir nuevos segmentos singleton sin tocar la lógica de detección.

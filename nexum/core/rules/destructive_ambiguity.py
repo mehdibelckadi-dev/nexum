@@ -37,6 +37,14 @@ def _schema_has_required_id(schema: dict[str, Any]) -> bool:
     return any(_ID_NAME_RE.match(field) for field in schema.get("required", []))
 
 
+_SINGLETON_RESOURCE_NOTES: dict[str, str] = {
+    "/v2/registry": (
+        "Note: this is a singleton resource (one per account). Blast radius is bounded "
+        "to this registry but includes all repositories, tags, and images stored within it."
+    ),
+}
+
+
 class DestructiveAmbiguity(BaseRule):
     """Flags destructive operations that do not target a specific resource by ID."""
 
@@ -77,6 +85,13 @@ class DestructiveAmbiguity(BaseRule):
             "method": "DELETE",
             "parameters": operation.get("parameters", []),
         }
+        base_explanation = (
+            f"DELETE {path} has no path parameter containing a resource identifier. "
+            "The operation may target the entire collection or an ambiguous subset "
+            "of resources, making it impossible for the agent to reason about scope."
+        )
+        note = _SINGLETON_RESOURCE_NOTES.get(path, "")
+        explanation = f"{base_explanation} {note}".rstrip() if note else base_explanation
         return Finding(
             rule_id=self.RULE_ID,
             rule_name=self.RULE_NAME,
@@ -84,11 +99,7 @@ class DestructiveAmbiguity(BaseRule):
             path=path,
             method="DELETE",
             evidence_snippet=json.dumps(snippet, indent=2),
-            human_explanation=(
-                f"DELETE {path} has no path parameter containing a resource identifier. "
-                "The operation may target the entire collection or an ambiguous subset "
-                "of resources, making it impossible for the agent to reason about scope."
-            ),
+            human_explanation=explanation,
             guardrail_suggestion=(
                 "Add a required path parameter that unambiguously identifies the target "
                 "resource, e.g. DELETE /{resource_id}. Reject requests that omit it."

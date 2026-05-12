@@ -10,6 +10,12 @@ from .base import BaseRule, Finding
 
 _SCOPED_METHODS: frozenset[str] = frozenset({"DELETE", "PATCH"})
 _WILDCARD_RE = re.compile(r"^\*$|^\.\*$|^%$")
+_SINGLETON_TERMINAL_SEGMENTS: frozenset[str] = frozenset({"default", "primary"})
+
+
+def _path_is_singleton(path: str) -> bool:
+    segment = path.rstrip("/").rsplit("/", 1)[-1]
+    return segment in _SINGLETON_TERMINAL_SEGMENTS
 
 
 def _path_has_param(path: str) -> bool:
@@ -53,6 +59,9 @@ class UnboundedScope(BaseRule):
                 if not isinstance(operation, dict):
                     continue
                 if method.upper() not in _SCOPED_METHODS:
+                    continue
+
+                if _path_is_singleton(path):
                     continue
 
                 bad_param = _wildcard_param(operation)

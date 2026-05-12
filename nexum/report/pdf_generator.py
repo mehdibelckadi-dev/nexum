@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +74,8 @@ _DISCLAIMER_LINE2 = (
 class _FooterPageTemplate(PageTemplate):
     """PageTemplate that renders a legal disclaimer footer outside the main Frame."""
 
+    valid_until_line: str = ""
+
     def afterDrawPage(self, canvas, doc):
         canvas.saveState()
 
@@ -89,12 +91,14 @@ class _FooterPageTemplate(PageTemplate):
         canvas.setLineWidth(0.5)
         canvas.line(x_left, sep_y, x_right, sep_y)
 
-        # Disclaimer text — two centered lines, 7pt, RGB(128,128,128)
+        # Disclaimer text — 7pt, RGB(128,128,128)
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.Color(128 / 255, 128 / 255, 128 / 255))
         cx = page_w / 2
         canvas.drawCentredString(cx, sep_y - 0.35 * cm, _DISCLAIMER_LINE1)
         canvas.drawCentredString(cx, sep_y - 0.66 * cm, _DISCLAIMER_LINE2)
+        if self.valid_until_line:
+            canvas.drawCentredString(cx, sep_y - 0.97 * cm, self.valid_until_line)
 
         canvas.restoreState()
 
@@ -128,7 +132,42 @@ def _build_styles() -> dict[str, ParagraphStyle]:
     _s("body",         fontName="Helvetica",          fontSize=9,  textColor=colors.HexColor("#333333"), leading=12)
     _s("no_issues",    fontName="Helvetica-Bold",     fontSize=16, textColor=colors.HexColor("#2E7D32"), leading=20)
     _s("tbl_cell",     fontName="Helvetica",          fontSize=8,  textColor=colors.HexColor("#333333"), leading=10)
+    _s("score_context", fontName="Helvetica",         fontSize=7.5, textColor=colors.HexColor("#777777"), leading=11)
     return styles
+
+
+# ---------------------------------------------------------------------------
+# Score-100 context note (page 1)
+# ---------------------------------------------------------------------------
+
+_SCORE_100_DETAIL: dict[str, str] = {
+    "CRITICAL": (
+        "represent direct destructive risk for autonomous agents — "
+        "infrastructure-wide deletion without resource-level confirmation"
+    ),
+    "HIGH": (
+        "represent agent retry exposure: without Idempotency-Key contracts, "
+        "any network failure during agent operation can trigger duplicate "
+        "resource creation across the entire API surface"
+    ),
+}
+
+
+def _build_score_context_note(findings: list[Finding]) -> str:
+    by_sev: dict[str, Counter] = defaultdict(Counter)
+    for f in findings:
+        by_sev[f.severity][f.rule_id] += 1
+    parts = []
+    for sev in ("CRITICAL", "HIGH"):
+        if not by_sev[sev]:
+            continue
+        rule_id, count = by_sev[sev].most_common(1)[0]
+        detail = _SCORE_100_DETAIL.get(sev, "")
+        parts.append(f"{count} {sev} findings ({rule_id}) {detail}.")
+    return (
+        "Score 100/100 represents worst-case aggregate risk across all findings. "
+        + " ".join(parts)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -238,6 +277,11 @@ def _page1(
     els.append(Spacer(1, 0.35 * cm))
     els.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CCCCCC")))
     els.append(Spacer(1, 0.25 * cm))
+
+    by_rule_ids = {f.rule_id for f in findings}
+    if result.score == 100 and len(by_rule_ids) > 1:
+        els.append(Paragraph(_build_score_context_note(findings), styles["score_context"]))
+        els.append(Spacer(1, 0.2 * cm))
 
     # Top findings
     els.append(Paragraph("Top Findings", styles["section_hdr"]))
@@ -444,6 +488,11 @@ def generate_pdf(
     """Render the 2-page PDF report. Returns elapsed wall-clock seconds."""
     t0 = time.perf_counter()
 
+    valid_until = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
+    validity_text = (
+        f"Valid for 30 days from scan date · Re-validate if spec changes · Valid until {valid_until}"
+    )
+
     styles = _build_styles()
     doc = BaseDocTemplate(
         str(output_path),
@@ -468,9 +517,9 @@ def generate_pdf(
         topPadding=0,
         id="main",
     )
-    doc.addPageTemplates([
-        _FooterPageTemplate(id="standard", frames=[main_frame], pagesize=A4)
-    ])
+    footer_tpl = _FooterPageTemplate(id="standard", frames=[main_frame], pagesize=A4)
+    footer_tpl.valid_until_line = validity_text
+    doc.addPageTemplates([footer_tpl])
 
     story = (
         _page1(findings, result, Path(source_file).name, styles)

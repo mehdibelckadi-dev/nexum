@@ -215,6 +215,29 @@ class TestUnboundedScope:
         result = self.rule.check(spec)
         assert result == []
 
+    def test_patch_singleton_default_not_flagged(self):
+        """PATCH on a /default singleton must not generate a finding.
+
+        /default names a single well-known resource, not a collection.
+        NEXUM-003 (UnboundedScope) only applies to operations that could
+        affect an unbounded set of resources — singletons are out of scope.
+        """
+        spec = _minimal_spec(**{
+            "/v2/projects/default": {
+                "patch": {"operationId": "patchDefaultProject", "parameters": []}
+            }
+        })
+        assert self.rule.check(spec) == []
+
+    def test_delete_singleton_primary_not_flagged(self):
+        """DELETE on a /primary singleton must not generate a finding."""
+        spec = _minimal_spec(**{
+            "/v2/accounts/primary": {
+                "delete": {"operationId": "deletePrimaryAccount", "parameters": []}
+            }
+        })
+        assert self.rule.check(spec) == []
+
 
 # ---------------------------------------------------------------------------
 # NEXUM-004  IdempotencyMissing
