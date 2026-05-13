@@ -723,6 +723,75 @@ class TestEngine:
 
 
 # ---------------------------------------------------------------------------
+# Confidence assignment
+# ---------------------------------------------------------------------------
+
+class TestConfidenceAssignment:
+    rule = DestructiveAmbiguity()
+
+    def test_nexum002_singleton_path_gets_medium_confidence(self):
+        """DELETE /v2/registry with no plural equivalent in the spec → MEDIUM.
+
+        No '/v2/registries' path exists, so the heuristic cannot confirm this
+        is a collection endpoint — confidence is reduced to MEDIUM.
+        """
+        spec = _minimal_spec(**{
+            "/v2/registry": {
+                "delete": {"operationId": "deleteRegistry", "parameters": []}
+            }
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].confidence == "MEDIUM"
+        reason = findings[0].confidence_reason.lower()
+        assert "singleton" in reason or "no plural" in reason
+
+    def test_nexum002_collection_path_gets_high_confidence(self):
+        """DELETE /v2/registry with /v2/registries present → HIGH.
+
+        The plural form exists in the spec, confirming this is a collection
+        endpoint — the finding is HIGH confidence.
+        """
+        spec = _minimal_spec(**{
+            "/v2/registry": {
+                "delete": {"operationId": "deleteRegistry", "parameters": []}
+            },
+            "/v2/registries": {
+                "get": {"operationId": "listRegistries", "parameters": []}
+            },
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].confidence == "HIGH"
+
+    def test_other_rules_always_high_confidence(self):
+        """NEXUM-001, 003, 004, 005 must always produce confidence='HIGH'."""
+        spec = _minimal_spec(**{
+            "/items": {
+                "get": {
+                    "operationId": "listItems",
+                    "parameters": [
+                        {"name": "api_key", "in": "query", "required": False,
+                         "schema": {"type": "string"}},
+                    ],
+                },
+                "delete": {"operationId": "deleteAll", "parameters": []},
+                "post": {
+                    "operationId": "createItem",
+                    "parameters": [],
+                    "requestBody": {"content": {"application/json": {
+                        "schema": {"type": "object", "additionalProperties": True},
+                    }}},
+                },
+            }
+        })
+        for f in engine.run(spec):
+            if f.rule_id != "NEXUM-002":
+                assert f.confidence == "HIGH", \
+                    f"{f.rule_id} produced confidence={f.confidence!r}"
+
+
+# ---------------------------------------------------------------------------
 # --exclude-path filtering (CLI contract, tested at the domain layer)
 # ---------------------------------------------------------------------------
 

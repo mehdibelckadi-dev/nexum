@@ -120,11 +120,13 @@ def generate(
         },
         "findings_summary": [
             {
-                "rule_id": f.rule_id,
-                "rule_name": f.rule_name,
-                "severity": f.severity,
-                "path": f.path,
-                "method": f.method,
+                "rule_id":           f.rule_id,
+                "rule_name":         f.rule_name,
+                "severity":          f.severity,
+                "path":              f.path,
+                "method":            f.method,
+                "confidence":        f.confidence,
+                "confidence_reason": f.confidence_reason,
             }
             for f in findings
         ],

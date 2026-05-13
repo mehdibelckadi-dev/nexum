@@ -17,6 +17,8 @@ class Finding:
     evidence_snippet: str  # exact fragment from the spec that fired the rule
     human_explanation: str
     guardrail_suggestion: str
+    confidence: str = "HIGH"        # HIGH | MEDIUM | LOW
+    confidence_reason: str = ""     # why this confidence level was assigned
 
 
 class BaseRule(ABC):

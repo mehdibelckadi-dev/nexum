@@ -37,6 +37,31 @@ def _schema_has_required_id(schema: dict[str, Any]) -> bool:
     return any(_ID_NAME_RE.match(field) for field in schema.get("required", []))
 
 
+def _plural_candidates(segment: str) -> frozenset[str]:
+    candidates = {segment + "s"}
+    if segment.endswith("y"):
+        candidates.add(segment[:-1] + "ies")
+    return frozenset(candidates)
+
+
+def _infer_confidence(path: str, all_paths: set[str]) -> tuple[str, str]:
+    terminal = path.rstrip("/").rsplit("/", 1)[-1]
+    plurals = _plural_candidates(terminal)
+    for spec_path in all_paths:
+        seg = spec_path.rstrip("/").rsplit("/", 1)[-1]
+        if seg in plurals:
+            return (
+                "HIGH",
+                f"Plural collection endpoint '{seg}' found at '{spec_path}' — "
+                "this path is part of a known collection.",
+            )
+    return (
+        "MEDIUM",
+        f"No plural collection equivalent of '{terminal}' detected in spec — "
+        "this path may be a singleton resource, reducing blast radius.",
+    )
+
+
 _SINGLETON_RESOURCE_NOTES: dict[str, str] = {
     "/v2/registry": (
         "Note: this is a singleton resource (one per account). Blast radius is bounded "
@@ -54,6 +79,7 @@ class DestructiveAmbiguity(BaseRule):
 
     def check(self, spec: dict[str, Any]) -> list[Finding]:
         findings: list[Finding] = []
+        all_paths: set[str] = set(spec.get("paths", {}).keys())
 
         for path, path_item in spec.get("paths", {}).items():
             for method, operation in path_item.items():
@@ -64,7 +90,8 @@ class DestructiveAmbiguity(BaseRule):
 
                 if method.upper() == "DELETE":
                     if not _path_has_id_param(path):
-                        findings.append(self._finding_openapi(path, method, operation))
+                        confidence, reason = _infer_confidence(path, all_paths)
+                        findings.append(self._finding_openapi(path, method, operation, confidence, reason))
 
                 elif operation.get("x-mcp-tool"):
                     body_schema = (
@@ -79,7 +106,14 @@ class DestructiveAmbiguity(BaseRule):
 
         return findings
 
-    def _finding_openapi(self, path: str, method: str, operation: dict[str, Any]) -> Finding:
+    def _finding_openapi(
+        self,
+        path: str,
+        method: str,
+        operation: dict[str, Any],
+        confidence: str = "HIGH",
+        confidence_reason: str = "",
+    ) -> Finding:
         snippet = {
             "path": path,
             "method": "DELETE",
@@ -104,6 +138,8 @@ class DestructiveAmbiguity(BaseRule):
                 "Add a required path parameter that unambiguously identifies the target "
                 "resource, e.g. DELETE /{resource_id}. Reject requests that omit it."
             ),
+            confidence=confidence,
+            confidence_reason=confidence_reason,
         )
 
     def _finding_mcp(

@@ -245,7 +245,7 @@ def _page1(
     # Score block: score number + "/ 100" side by side
     score_tbl = Table(
         [[Paragraph(str(result.score), styles["score_num"]),
-          Paragraph("/ 100", styles["score_denom"])]],
+          Paragraph(" / 100", styles["score_denom"])]],
         colWidths=[4.5 * cm, 3 * cm],
     )
     score_tbl.setStyle(TableStyle([
