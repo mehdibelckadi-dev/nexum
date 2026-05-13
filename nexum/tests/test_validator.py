@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import pytest
+from typer.testing import CliRunner
 
+from nexum.cli import app as nexum_app
 from nexum.validator import ValidationResult, validate
 from nexum.validator.known_fps import match_false_positive
+
+_cli_runner = CliRunner()
+FIXTURES = Path(__file__).parent / "fixtures"
 
 
 # ---------------------------------------------------------------------------
@@ -286,3 +292,43 @@ class TestCompletenessAngle:
         del manifest["auto_detected_invariants"]
         result = validate(manifest)
         assert "MISSING_FIELD" in result.flags
+
+
+# ---------------------------------------------------------------------------
+# CLI — nexum report --validate
+# ---------------------------------------------------------------------------
+
+class TestReportValidateFlag:
+    def test_report_with_validate_flag_distributable(self, tmp_path):
+        # sample_mcp.json → NEXUM-002(CRITICAL,HIGH) + NEXUM-004(HIGH) + NEXUM-005(MEDIUM)
+        # All findings use confidence=HIGH (MCP path skips _infer_confidence) → DISTRIBUTABLE
+        pdf = tmp_path / "out.pdf"
+        result = _cli_runner.invoke(
+            nexum_app,
+            ["report", str(FIXTURES / "sample_mcp.json"), "--output", str(pdf), "--validate"],
+        )
+        assert result.exit_code == 0
+        assert "DISTRIBUTABLE" in result.output
+
+    def test_report_with_validate_flag_review_required(self, tmp_path):
+        # DELETE /registry without path param and no /registries sibling →
+        # NEXUM-002 CRITICAL confidence=MEDIUM → REVIEW_REQUIRED → exit 2
+        spec = tmp_path / "singleton.yaml"
+        spec.write_text(
+            "openapi: '3.0.0'\n"
+            "info:\n  title: T\n  version: '1'\n"
+            "paths:\n"
+            "  /registry:\n"
+            "    delete:\n"
+            "      operationId: deleteRegistry\n"
+            "      responses:\n"
+            "        '200':\n          description: OK\n"
+            "components: {}\n"
+        )
+        pdf = tmp_path / "out.pdf"
+        result = _cli_runner.invoke(
+            nexum_app,
+            ["report", str(spec), "--output", str(pdf), "--validate"],
+        )
+        assert result.exit_code == 2
+        assert "REVIEW_REQUIRED" in result.output

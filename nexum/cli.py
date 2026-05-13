@@ -13,7 +13,7 @@ from .core.ingestor import NexumIngestError, ingest
 from .core.scorer import calculate
 from .manifest.generator import generate
 from .report.pdf_generator import generate_pdf
-from .validator import validate
+from .validator import ValidationResult, validate
 
 app = typer.Typer(
     name="nexum",
@@ -66,12 +66,48 @@ def scan(
     print(json.dumps(manifest, indent=2))
 
 
+def _print_validation_result(vresult: ValidationResult) -> None:
+    assert len(vresult.flags) == len(vresult.findings_flagged), (
+        f"flags/findings_flagged length mismatch: "
+        f"{len(vresult.flags)} != {len(vresult.findings_flagged)}"
+    )
+    verdict_color = {
+        "DISTRIBUTABLE":     typer.colors.GREEN,
+        "REVIEW_REQUIRED":   typer.colors.YELLOW,
+        "DO_NOT_DISTRIBUTE": typer.colors.RED,
+    }.get(vresult.verdict, typer.colors.WHITE)
+    passed = vresult.auto_checks_passed
+    total  = vresult.auto_checks_total
+    typer.echo(
+        typer.style(
+            f"Validation: {vresult.verdict} ({passed}/{total} checks passed)",
+            fg=verdict_color, bold=True,
+        ),
+        err=True,
+    )
+    for flag, flagged in zip(vresult.flags, vresult.findings_flagged):
+        if "finding" in flagged:
+            f = flagged["finding"]
+            detail = (
+                f"finding {f.get('rule_id', '?')} {f.get('path', '?')} "
+                f"— confidence {f.get('confidence', '?')}"
+            )
+        else:
+            detail = f"field {flagged.get('field', '?')} — {flagged.get('reason', '')}"
+        typer.echo(f"Flags: {flag} ({detail})", err=True)
+    angles_str = ", ".join(vresult.manual_review_angles)
+    typer.echo(f"Manual review required: angles {angles_str}", err=True)
+
+
 @app.command()
 def report(
     file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
     output: Path = typer.Option(Path("report.pdf"), "--output", "-o", help="Output PDF path"),
     exclude_path: list[str] = typer.Option(
         [], "--exclude-path", help="Exclude all findings at this exact path (repeatable)",
+    ),
+    run_validate: bool = typer.Option(
+        False, "--validate", help="Run validator after PDF generation; exit code reflects verdict",
     ),
 ) -> None:
     """Generate a PDF Security Report for a spec file."""
@@ -114,6 +150,14 @@ def report(
     typer.echo(f"  Findings: {len(findings)}")
     typer.echo(f"  Time    : {elapsed:.2f}s")
     typer.echo(f"  Size    : {output.stat().st_size // 1024} KB")
+
+    if run_validate:
+        vresult = validate(manifest)
+        _print_validation_result(vresult)
+        if vresult.verdict == "DO_NOT_DISTRIBUTE":
+            raise typer.Exit(code=1)
+        if vresult.verdict == "REVIEW_REQUIRED":
+            raise typer.Exit(code=2)
 
 
 @app.command()
