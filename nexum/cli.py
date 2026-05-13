@@ -1,7 +1,8 @@
-"""CLI entry point — nexum scan <file> / nexum report <file>"""
+"""CLI entry point — nexum scan <file> / nexum report <file> / nexum validate <file>"""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -12,6 +13,7 @@ from .core.ingestor import NexumIngestError, ingest
 from .core.scorer import calculate
 from .manifest.generator import generate
 from .report.pdf_generator import generate_pdf
+from .validator import validate
 
 app = typer.Typer(
     name="nexum",
@@ -112,6 +114,35 @@ def report(
     typer.echo(f"  Findings: {len(findings)}")
     typer.echo(f"  Time    : {elapsed:.2f}s")
     typer.echo(f"  Size    : {output.stat().st_size // 1024} KB")
+
+
+@app.command()
+def validate_manifest(
+    findings_json: Path = typer.Argument(
+        ..., help="JSON file produced by `nexum scan` (Trust Manifest draft)"
+    ),
+    strict: bool = typer.Option(
+        False, "--strict", help="Treat REVIEW_REQUIRED as exit code 1 (useful in CI)"
+    ),
+) -> None:
+    """Validate a Trust Manifest draft and emit a ValidationResult as JSON."""
+    if not findings_json.exists():
+        typer.echo(f"Error: file not found — '{findings_json}'", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        manifest = json.loads(findings_json.read_text())
+    except json.JSONDecodeError as exc:
+        typer.echo(f"Error: invalid JSON — {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    result = validate(manifest)
+    print(json.dumps(dataclasses.asdict(result), indent=2))
+
+    if result.verdict == "DO_NOT_DISTRIBUTE":
+        raise typer.Exit(code=1)
+    if result.verdict == "REVIEW_REQUIRED":
+        raise typer.Exit(code=1 if strict else 2)
 
 
 if __name__ == "__main__":
