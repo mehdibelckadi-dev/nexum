@@ -19,3 +19,6 @@ nexum/.DS_Store
 # Scan input files in repo root (third-party specs, not committed fixtures)
 /*.json
 enterprise_rest_api_public.json
+
+# Batch scan outputs — specs, PDFs, and logs never go to the repo
+scans/
