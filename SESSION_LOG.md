@@ -315,3 +315,31 @@ NEXUM-003 (UnboundedScope) no aplica semánticamente — existe un único
 recurso con ese nombre, no una colección afectable de forma masiva.
 Fix aplicado (2026-05-12): `_SINGLETON_TERMINAL_SEGMENTS` en `unbounded_scope.py`.
 Frozenset extensible: añadir nuevos segmentos singleton sin tocar la lógica de detección.
+
+**TD-013 — _plural_candidates no detecta pluralidad en camelCase
+(channelSubscriptions, PackageTypetoBundles) ni semántica de
+revocación en NEXUM-002 (key_revoke → no es borrado de datos).
+Fix Sprint 2: split camelCase en _plural_candidates + ampliar
+protocolo de verificación semántica del Adversarial Validator
+Ángulo 4 para operationId que contenga "revoke", "detach", "unlink".
+
+TD-014 — NexumIngestError produce DO_NOT_DISTRIBUTE en el validator
+en lugar de ERROR. El batch script debería capturar exit codes de
+error de parsing separadamente de los verdicts del validator.
+Fix: el script distingue entre exit code de NexumIngestError (error
+de input) y DO_NOT_DISTRIBUTE (finding de seguridad real).
+## Batch Scan Final — 2026-05-13
+
+Total APIs scanned: 2,480 (APIs.guru complete catalog)
+DISTRIBUTABLE:     2,469 (94.1%)
+REVIEW_REQUIRED:     146 (5.6%)
+DO_NOT_DISTRIBUTE:     2 (0.1%)
+ERRORS:                8 (0.3%)
+
+Key finding: TD-013 confirmed — camelCase plural paths
+trigger confidence MEDIUM in NEXUM-002 heuristic.
+TD-014 confirmed — YAML parse errors produce 
+DO_NOT_DISTRIBUTE instead of ERROR.
+
+findings_log.jsonl: 72 entries (manual scans)
+PDFs generated: 2,480
