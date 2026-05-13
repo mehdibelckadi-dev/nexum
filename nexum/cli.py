@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import enum
 import json
 from pathlib import Path
 
@@ -10,7 +11,8 @@ import typer
 
 from .core import engine
 from .core.ingestor import NexumIngestError, ingest
-from .core.scorer import calculate
+from .core.rules.base import Finding
+from .core.scorer import ScoreResult, calculate
 from .manifest.generator import generate
 from .report.pdf_generator import generate_pdf
 from .validator import ValidationResult, validate
@@ -25,6 +27,58 @@ _TIER_LABEL = {0: "Tier 0 — LOW RISK", 1: "Tier 1 — MODERATE RISK", 2: "Tier
 _TIER_COLOR = {0: typer.colors.GREEN, 1: typer.colors.YELLOW, 2: typer.colors.RED}
 
 
+class ScanFormat(str, enum.Enum):
+    json    = "json"
+    summary = "summary"
+
+
+_TABLE_WIDTH = 42
+_SEVER_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
+
+
+def _print_summary(file: Path, findings: list[Finding], result: ScoreResult) -> None:
+    double = "═" * _TABLE_WIDTH
+    single = "─" * _TABLE_WIDTH
+
+    print(double)
+    print(f" NEXUM SCAN — {file.name}")
+    print(double)
+
+    tier_label = _TIER_LABEL[result.tier].removeprefix("Tier ")
+    print(f" Score     {result.score} / 100")
+    print(f" Tier      {tier_label}")
+
+    sev_counts: dict[str, int] = {}
+    for f in findings:
+        sev_counts[f.severity] = sev_counts.get(f.severity, 0) + 1
+    parts = [f"{len(findings)} total"]
+    for sev in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
+        if sev in sev_counts:
+            parts.append(f"{sev_counts[sev]} {sev}")
+    print(f" Findings  {' · '.join(parts)}")
+
+    print(single)
+
+    by_rule: dict[str, list[Finding]] = {}
+    for f in findings:
+        by_rule.setdefault(f.rule_id, []).append(f)
+
+    for rule in engine._RULES:
+        rule_id       = rule.RULE_ID    # type: ignore[attr-defined]
+        rule_name     = rule.RULE_NAME  # type: ignore[attr-defined]
+        rule_findings = by_rule.get(rule_id, [])
+        count         = len(rule_findings)
+        sev_label     = (
+            min(rule_findings, key=lambda f: _SEVER_ORDER.get(f.severity, 99)).severity
+            if count > 0 else "—"
+        )
+        print(f" {rule_id}  {rule_name:<20}  {count}  {sev_label}")
+
+    print(double)
+    print(" getnexum.dev")
+    print(double)
+
+
 @app.callback()
 def _main() -> None:
     """Nexum Scanner — analyse MCP/OpenAPI specs for AI safety risks."""
@@ -33,6 +87,9 @@ def _main() -> None:
 @app.command()
 def scan(
     file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
+    fmt: ScanFormat = typer.Option(
+        ScanFormat.json, "--format", help="Output format: json (default) or summary",
+    ),
 ) -> None:
     """Scan a spec file and print the Trust Manifest draft and Risk Score."""
     if not file.exists():
@@ -63,7 +120,10 @@ def scan(
     typer.echo(src_line,                                          err=True)
     typer.echo(bar,                                               err=True)
     typer.echo("",                                                err=True)
-    print(json.dumps(manifest, indent=2))
+    if fmt == ScanFormat.summary:
+        _print_summary(file, findings, result)
+    else:
+        print(json.dumps(manifest, indent=2))
 
 
 def _print_validation_result(vresult: ValidationResult) -> None:

@@ -1,0 +1,66 @@
+name: 'Nexum API Security Scan'
+description: 'Scans MCP or OpenAPI specs for agentic security risks'
+
+inputs:
+  spec-file:
+    description: 'Path to OpenAPI or MCP spec file'
+    required: true
+  fail-on-tier:
+    description: 'Fail if risk tier >= this value (0-2)'
+    required: false
+    default: '2'
+  validate:
+    description: 'Run validator after scan'
+    required: false
+    default: 'false'
+
+outputs:
+  risk-tier:
+    description: 'Risk tier (0, 1, or 2)'
+    value: ${{ steps.scan.outputs.risk-tier }}
+  risk-score:
+    description: 'Risk score (0-100)'
+    value: ${{ steps.scan.outputs.risk-score }}
+  findings-count:
+    description: 'Total number of findings'
+    value: ${{ steps.scan.outputs.findings-count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Nexum
+      shell: bash
+      run: pip install -e .
+
+    - name: Run scan
+      id: scan
+      shell: bash
+      run: |
+        nexum scan "${{ inputs.spec-file }}" --format summary
+
+        SCAN_JSON=$(nexum scan "${{ inputs.spec-file }}" 2>/dev/null)
+
+        TIER=$(echo "$SCAN_JSON"  | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['inferred_risk_tier'])")
+        SCORE=$(echo "$SCAN_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d['nexum_risk_score'])")
+        COUNT=$(echo "$SCAN_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(len(d['findings_summary']))")
+
+        echo "risk-tier=$TIER"       >> "$GITHUB_OUTPUT"
+        echo "risk-score=$SCORE"     >> "$GITHUB_OUTPUT"
+        echo "findings-count=$COUNT" >> "$GITHUB_OUTPUT"
+
+        if [ "${{ inputs.validate }}" = "true" ]; then
+          MANIFEST_TMP=$(mktemp /tmp/nexum-manifest-XXXXXX.json)
+          echo "$SCAN_JSON" > "$MANIFEST_TMP"
+          nexum validate "$MANIFEST_TMP"
+          VALIDATE_EXIT=$?
+          rm -f "$MANIFEST_TMP"
+          if [ "$VALIDATE_EXIT" -eq 1 ]; then
+            echo "Nexum validator: DO_NOT_DISTRIBUTE — blocking"
+            exit 1
+          fi
+        fi
+
+        if [ "$TIER" -ge "${{ inputs.fail-on-tier }}" ]; then
+          echo "Nexum: Tier $TIER >= fail-on-tier ${{ inputs.fail-on-tier }} — failing"
+          exit 1
+        fi

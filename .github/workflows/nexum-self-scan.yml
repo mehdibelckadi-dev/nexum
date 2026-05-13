@@ -1,0 +1,25 @@
+name: Nexum Self-Scan
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  self-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan sample OpenAPI fixture
+        id: nexum
+        uses: ./.github/actions/nexum-scan
+        with:
+          spec-file: nexum/tests/fixtures/sample_openapi.yaml
+          fail-on-tier: '3'
+
+      - name: Print outputs
+        shell: bash
+        run: |
+          echo "Tier:     ${{ steps.nexum.outputs.risk-tier }}"
+          echo "Score:    ${{ steps.nexum.outputs.risk-score }}"
+          echo "Findings: ${{ steps.nexum.outputs.findings-count }}"
