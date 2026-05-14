@@ -22,3 +22,9 @@ enterprise_rest_api_public.json
 
 # Batch scan outputs — specs, PDFs, and logs never go to the repo
 scans/
+client-sdk-web/
+batch_summary.txt
+config.anthropic.spec.ts
+client-sdk-web/
+batch_summary.txt
+config.anthropic.spec.ts
