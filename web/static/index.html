@@ -126,6 +126,70 @@
   </div>
 </section>
 
+<!-- ── Live Scanner terminal ────────────────────────────── -->
+<section class="terminal-section">
+  <div class="container">
+    <div class="text-center mb-8">
+      <div class="section-label">Live scanner</div>
+      <h2 class="section-title">Agentic risk, detected in real time</h2>
+      <p class="section-sub" style="margin: 0 auto 48px;">
+        Every finding shown here is from a real public API scan.
+      </p>
+    </div>
+    <div class="terminal-wrap">
+      <div class="terminal-header">
+        <div class="terminal-dots"><span></span><span></span><span></span></div>
+        <div class="terminal-title mono">NEXUM SCANNER · LIVE</div>
+      </div>
+      <div class="terminal-body" id="terminalBody"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Blast radius ─────────────────────────────────────── -->
+<section class="blast-section">
+  <div class="container">
+    <div class="section-label">Blast radius</div>
+    <h2 class="section-title">Real blast radius. Real APIs.</h2>
+    <p class="section-sub">From our scan of 2,517 public APIs.</p>
+    <div class="blast-grid">
+
+      <div class="blast-card">
+        <div class="blast-category">Messaging</div>
+        <div class="blast-api mono">slack.com</div>
+        <div class="blast-count">58</div>
+        <div class="blast-label">CRITICAL findings</div>
+        <p class="blast-desc">Admin endpoints expose token credentials in query strings — visible in every agent HTTP log.</p>
+      </div>
+
+      <div class="blast-card">
+        <div class="blast-category">Payments</div>
+        <div class="blast-api mono">stripe.com</div>
+        <div class="blast-count">5</div>
+        <div class="blast-label">CRITICAL findings</div>
+        <p class="blast-desc">Token-bearing payment endpoints appear in agent request logs, leaking credentials on every call.</p>
+      </div>
+
+      <div class="blast-card">
+        <div class="blast-category">Infrastructure</div>
+        <div class="blast-api mono">digitalocean.com</div>
+        <div class="blast-count">3</div>
+        <div class="blast-label">CRITICAL findings</div>
+        <p class="blast-desc">Bulk-delete operations without resource scope — a single agent call can destroy an entire fleet.</p>
+      </div>
+
+      <div class="blast-card">
+        <div class="blast-category">Developer Tools</div>
+        <div class="blast-api mono">github.com</div>
+        <div class="blast-count">7</div>
+        <div class="blast-label">CRITICAL findings</div>
+        <p class="blast-desc">API token parameters in query strings across 7 endpoints, exposed in every agent request log.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ── How it works ─────────────────────────────────────── -->
 <section class="how-section" id="how">
   <div class="container">
@@ -307,6 +371,88 @@
   </div>
 </footer>
 
+<script>
+(function () {
+  'use strict';
+
+  var body = document.getElementById('terminalBody');
+  if (!body) return;
+
+  var APIS = [
+    {
+      host: 'stripe.com',
+      findings: [
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/tokens',  desc: 'credentials in query string' },
+        { rule: 'NEXUM-004', sev: 'HIGH',     path: '/v1/charges', desc: 'no idempotency contract' },
+      ],
+    },
+    {
+      host: 'slack.com',
+      findings: [
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.approved.list', desc: 'token in query string' },
+      ],
+    },
+    {
+      host: 'digitalocean.com',
+      findings: [
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/droplets', desc: 'DELETE without resource scope' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/volumes',  desc: 'DELETE without resource scope' },
+      ],
+    },
+  ];
+
+  function addLine(html, delay) {
+    setTimeout(function () {
+      var div = document.createElement('div');
+      div.innerHTML = html;
+      div.style.cssText = 'opacity:0;transition:opacity 200ms ease';
+      body.appendChild(div);
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () { div.style.opacity = '1'; });
+      });
+    }, delay);
+  }
+
+  function run() {
+    body.innerHTML = '';
+    var t = 0;
+
+    APIS.forEach(function (api, i) {
+      if (i > 0) {
+        addLine('&nbsp;', t);
+        t += 400;
+      }
+
+      addLine(
+        '<span style="color:var(--text-secondary)">scanning </span>' +
+        '<span style="color:var(--text-primary);font-weight:600">' + api.host + '</span>' +
+        '<span style="color:var(--text-secondary)">...</span>',
+        t
+      );
+      t += 400;
+
+      api.findings.forEach(function (f) {
+        var sevColor = f.sev === 'CRITICAL' ? 'var(--accent-red)' : 'var(--accent-yellow)';
+        addLine(
+          '<span style="color:var(--text-tertiary)">→ </span>' +
+          '<span style="color:var(--accent-blue);font-weight:600">' + f.rule + '</span>&nbsp;' +
+          '<span style="color:' + sevColor + ';font-weight:600;display:inline-block;min-width:9ch">' + f.sev + '</span>' +
+          '<span style="color:var(--text-secondary);display:inline-block;min-width:30ch">' + f.path + '</span>' +
+          '<span style="color:var(--text-tertiary)">' + f.desc + '</span>',
+          t
+        );
+        t += 400;
+      });
+
+      t += 3000;
+    });
+
+    setTimeout(run, t);
+  }
+
+  run();
+})();
+</script>
 <script src="/static/js/nexum.js"></script>
 </body>
 </html>
