@@ -79,3 +79,23 @@ class TestIndexEndpoint:
         res = client.get("/")
         assert res.status_code == 200
         assert "text/html" in res.headers["content-type"]
+
+
+class TestBadgeEndpoint:
+    def test_badge_tier0_returns_svg(self):
+        res = client.get("/badge/0")
+        assert res.status_code == 200
+        assert res.headers["content-type"] == "image/svg+xml"
+        assert "<svg" in res.text
+        assert "Tier 0" in res.text
+        assert "#4c1" in res.text
+
+    def test_badge_tier2_returns_red_svg(self):
+        res = client.get("/badge/2")
+        assert res.status_code == 200
+        assert "#e05d44" in res.text
+        assert "Tier 2" in res.text
+
+    def test_invalid_tier_returns_404(self):
+        res = client.get("/badge/99")
+        assert res.status_code == 404

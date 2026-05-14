@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import html as _html
 import io
 import tempfile
 from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 
 from nexum.core import engine
 from nexum.core.ingestor import NexumIngestError, ingest
@@ -19,6 +20,29 @@ from nexum.report.pdf_generator import generate_pdf
 app = FastAPI(title="Nexum Scanner", docs_url=None, redoc_url=None)
 
 _TIER_LABEL = {0: "Tier 0 — LOW RISK", 1: "Tier 1 — MODERATE RISK", 2: "Tier 2 — HIGH RISK"}
+_BADGE_CONFIGS = {
+    0: {"color": "#4c1",    "text": "Nexum Certified · Tier 0 · Safe"},
+    1: {"color": "#db1",    "text": "Nexum Certified · Tier 1 · Moderate Risk"},
+    2: {"color": "#e05d44", "text": "Nexum Certified · Tier 2 · High Risk"},
+}
+_SVG_TEMPLATE = (
+    '<svg xmlns="http://www.w3.org/2000/svg" width="74" height="20" viewBox="0 0 520 140">'
+    '<linearGradient id="s" x2="0" y2="100%">'
+    '<stop offset="0" stop-color="#bbb" stop-opacity=".1"/>'
+    '<stop offset="1" stop-opacity=".1"/>'
+    '</linearGradient>'
+    '<clipPath id="r"><rect width="520" height="140" rx="21" fill="#fff"/></clipPath>'
+    '<g clip-path="url(#r)">'
+    '<rect width="520" height="140" fill="{color}"/>'
+    '<rect width="520" height="140" fill="url(#s)"/>'
+    '</g>'
+    '<g fill="#fff" text-anchor="middle"'
+    ' font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">'
+    '<text x="260" y="108" fill="#010101" fill-opacity=".3">{text}</text>'
+    '<text x="260" y="98">{text}</text>'
+    '</g>'
+    '</svg>'
+)
 _ALLOWED_SUFFIXES = {".json", ".yaml", ".yml"}
 _STATIC = Path(__file__).parent / "static"
 
@@ -73,6 +97,29 @@ async def report(file: UploadFile = File(...)):
         io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{stem}_nexum.pdf"'},
+    )
+
+
+@app.get("/badge/{tier}")
+async def badge(tier: int):
+    if tier not in _BADGE_CONFIGS:
+        raise HTTPException(status_code=404, detail=f"Unknown tier '{tier}'. Valid tiers: 0, 1, 2.")
+    cfg = _BADGE_CONFIGS[tier]
+    svg = _SVG_TEMPLATE.format(color=cfg["color"], text=_html.escape(cfg["text"]))
+    return Response(
+        content=svg,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "max-age=3600"},
+    )
+
+
+@app.get("/badge/{tier}/markdown")
+async def badge_markdown(tier: int):
+    if tier not in _BADGE_CONFIGS:
+        raise HTTPException(status_code=404, detail=f"Unknown tier '{tier}'. Valid tiers: 0, 1, 2.")
+    return Response(
+        content=f"![Nexum Certified](https://getnexum.dev/badge/{tier})\n",
+        media_type="text/plain",
     )
 
 
