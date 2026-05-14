@@ -81,6 +81,43 @@ class TestIndexEndpoint:
         assert "text/html" in res.headers["content-type"]
 
 
+class TestRegistryDataEndpoint:
+    def test_returns_200(self):
+        res = client.get("/registry-data")
+        assert res.status_code == 200
+
+    def test_returns_json_content_type(self):
+        res = client.get("/registry-data")
+        assert "application/json" in res.headers["content-type"]
+
+    def test_response_is_list(self):
+        data = client.get("/registry-data").json()
+        assert isinstance(data, list)
+
+    def test_each_entry_has_required_fields(self):
+        data = client.get("/registry-data").json()
+        for entry in data:
+            assert "api" in entry
+            assert "verdict" in entry
+
+    def test_count_meets_minimum(self):
+        data = client.get("/registry-data").json()
+        assert len(data) >= 2500
+
+    def test_verdicts_are_valid_values(self):
+        data = client.get("/registry-data").json()
+        valid = {"DISTRIBUTABLE", "REVIEW_REQUIRED", "DO_NOT_DISTRIBUTE"}
+        for entry in data:
+            assert entry["verdict"] in valid
+
+
+class TestRegistryPageEndpoint:
+    def test_registry_serves_html(self):
+        res = client.get("/registry")
+        assert res.status_code == 200
+        assert "text/html" in res.headers["content-type"]
+
+
 class TestBadgeEndpoint:
     def test_badge_tier0_returns_svg(self):
         res = client.get("/badge/0")

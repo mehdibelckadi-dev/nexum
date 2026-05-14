@@ -10,6 +10,7 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from nexum.core import engine
 from nexum.core.ingestor import NexumIngestError, ingest
@@ -18,6 +19,8 @@ from nexum.manifest.generator import generate
 from nexum.report.pdf_generator import generate_pdf
 
 app = FastAPI(title="Nexum Scanner", docs_url=None, redoc_url=None)
+_STATIC = Path(__file__).parent / "static"
+app.mount("/static", StaticFiles(directory=_STATIC), name="static")
 
 _TIER_LABEL = {0: "Tier 0 — LOW RISK", 1: "Tier 1 — MODERATE RISK", 2: "Tier 2 — HIGH RISK"}
 _BADGE_CONFIGS = {
@@ -44,7 +47,6 @@ _SVG_TEMPLATE = (
     '</svg>'
 )
 _ALLOWED_SUFFIXES = {".json", ".yaml", ".yml"}
-_STATIC = Path(__file__).parent / "static"
 
 
 def _pipeline(content: bytes, filename: str):
@@ -67,6 +69,19 @@ def _pipeline(content: bytes, filename: str):
 @app.get("/")
 async def index():
     return FileResponse(_STATIC / "index.html")
+
+
+@app.get("/registry")
+async def registry():
+    return FileResponse(_STATIC / "registry.html")
+
+
+@app.get("/registry-data")
+async def registry_data():
+    path = _STATIC / "registry_data.json"
+    if not path.exists():
+        raise HTTPException(status_code=503, detail="Registry data not available.")
+    return JSONResponse(content=__import__("json").loads(path.read_text(encoding="utf-8")))
 
 
 @app.post("/scan")

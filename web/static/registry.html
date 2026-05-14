@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexum Registry — 2,480 APIs scanned</title>
+  <meta name="description" content="Public registry of APIs scanned by Nexum. See which APIs are safe for agentic use.">
+  <link rel="stylesheet" href="/static/css/nexum.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header class="site-header">
+  <nav class="nav container">
+    <a href="/" class="nav-logo">nex<span>um</span></a>
+    <ul class="nav-links">
+      <li><a href="/#scanner">Product</a></li>
+      <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Docs</a></li>
+      <li><a href="/registry" style="color: var(--text-primary);">Registry</a></li>
+      <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/#scanner" class="nav-cta">Scan your API →</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ── Registry hero ─────────────────────────────────────── -->
+<div class="registry-hero">
+  <div class="container">
+    <div class="section-label">Public Registry</div>
+    <h1>APIs scanned by Nexum</h1>
+    <p>
+      <span id="registryHeroCount">2,480</span> public APIs audited for agentic risk.
+      Filter by verdict to find safe APIs for your agent stack.
+    </p>
+  </div>
+</div>
+
+<!-- ── Registry table ────────────────────────────────────── -->
+<section style="padding: 48px 0 120px;">
+  <div class="container">
+
+    <!-- Filters + search -->
+    <div class="registry-filters" id="registryFilters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="DISTRIBUTABLE">Certified</button>
+      <button class="filter-btn" data-filter="REVIEW_REQUIRED">Review Required</button>
+      <button class="filter-btn" data-filter="DO_NOT_DISTRIBUTE">Do Not Distribute</button>
+      <input
+        type="search"
+        class="registry-search"
+        id="registrySearch"
+        placeholder="Filter by API name…"
+        aria-label="Search APIs"
+      >
+    </div>
+
+    <!-- Count -->
+    <div class="registry-count" id="registryCount">Loading…</div>
+
+    <!-- Table -->
+    <div class="registry-table-wrap">
+      <table class="registry-table" aria-label="API registry">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>API Name</th>
+            <th>Verdict</th>
+            <th>Badge</th>
+          </tr>
+        </thead>
+        <tbody id="registryBody">
+          <tr>
+            <td colspan="4" style="text-align:center; padding: 40px; color: var(--text-tertiary);">
+              <div class="spinner" style="margin: 0 auto 12px;"></div>
+              Loading registry…
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Scan CTA -->
+    <div style="margin-top: 48px; text-align: center;">
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">
+        Don't see your API? Scan it now.
+      </p>
+      <a href="/#scanner" class="btn btn-primary">Scan your API free →</a>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">nex<span>um</span></div>
+        <div class="footer-tagline">The contract between your agent and your infrastructure</div>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Trust Manifest Spec</a></li>
+        <li><a href="https://getnexum.dev">getnexum.dev</a></li>
+      </ul>
+      <div class="footer-copy mono">Nexum · Open specification · MIT License</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  const VERDICT_LABEL = {
+    DISTRIBUTABLE:    'Certified',
+    REVIEW_REQUIRED:  'Review Required',
+    DO_NOT_DISTRIBUTE:'Do Not Distribute',
+  };
+
+  const TIER_FOR_VERDICT = {
+    DISTRIBUTABLE:    0,
+    REVIEW_REQUIRED:  1,
+    DO_NOT_DISTRIBUTE:2,
+  };
+
+  let allData     = [];
+  let activeFilter = 'all';
+  let searchQuery  = '';
+
+  const tbody           = document.getElementById('registryBody');
+  const countEl         = document.getElementById('registryCount');
+  const searchInput     = document.getElementById('registrySearch');
+  const filterBtns      = document.querySelectorAll('.filter-btn');
+  const heroCount       = document.getElementById('registryHeroCount');
+
+  // ── Load data ──────────────────────────────────────────
+  fetch('/registry-data')
+    .then((r) => {
+      if (!r.ok) throw new Error('Failed to load registry');
+      return r.json();
+    })
+    .then((data) => {
+      allData = data;
+      if (heroCount) heroCount.textContent = data.length.toLocaleString();
+      render();
+    })
+    .catch(() => {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-red);">Failed to load registry data.</td></tr>';
+      countEl.textContent = '';
+    });
+
+  // ── Filters ────────────────────────────────────────────
+  filterBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeFilter = btn.dataset.filter;
+      render();
+    });
+  });
+
+  searchInput.addEventListener('input', () => {
+    searchQuery = searchInput.value.trim().toLowerCase();
+    render();
+  });
+
+  // ── Render ─────────────────────────────────────────────
+  function render() {
+    const filtered = allData.filter((row) => {
+      const matchFilter = activeFilter === 'all' || row.verdict === activeFilter;
+      const matchSearch = !searchQuery || row.api.toLowerCase().includes(searchQuery);
+      return matchFilter && matchSearch;
+    });
+
+    countEl.textContent = filtered.length.toLocaleString() + ' APIs';
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-tertiary);">No APIs match this filter.</td></tr>';
+      return;
+    }
+
+    const fragment = document.createDocumentFragment();
+    filtered.forEach((row, i) => {
+      const tier   = TIER_FOR_VERDICT[row.verdict] ?? 1;
+      const label  = VERDICT_LABEL[row.verdict] || row.verdict;
+      const mdBadge = `![Nexum Certified](https://getnexum.dev/badge/${tier})`;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="mono" style="color:var(--text-tertiary);width:52px">${i + 1}</td>
+        <td class="api-name">${escHtml(row.api)}</td>
+        <td><span class="verdict-chip ${escHtml(row.verdict)}">${escHtml(label)}</span></td>
+        <td>
+          <button class="btn-copy" style="font-size:11px" data-md="${escAttr(mdBadge)}" onclick="copyMd(this)">
+            Copy badge
+          </button>
+        </td>
+      `;
+      fragment.appendChild(tr);
+    });
+
+    tbody.innerHTML = '';
+    tbody.appendChild(fragment);
+  }
+
+  // ── Copy badge ─────────────────────────────────────────
+  window.copyMd = function (btn) {
+    const text = btn.dataset.md;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied ✓';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = 'Copy badge';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  };
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function escAttr(str) {
+    return String(str).replace(/"/g, '&quot;');
+  }
+})();
+</script>
+
+</body>
+</html>
