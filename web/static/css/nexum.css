@@ -811,20 +811,20 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   white-space: nowrap;
 }
 
-.verdict-chip.DISTRIBUTABLE {
-  background: rgba(0, 255, 136, 0.1);
-  color: var(--accent-green);
-  border: 1px solid rgba(0, 255, 136, 0.2);
+.verdict-chip.analyzed {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 .verdict-chip.REVIEW_REQUIRED {
   background: rgba(255, 204, 0, 0.1);
   color: var(--accent-yellow);
-  border: 1px solid rgba(255, 204, 0, 0.2);
+  border: 1px solid var(--accent-yellow);
 }
-.verdict-chip.DO_NOT_DISTRIBUTE {
+.verdict-chip.high-risk {
   background: rgba(255, 68, 68, 0.1);
   color: var(--accent-red);
-  border: 1px solid rgba(255, 68, 68, 0.2);
+  border: 1px solid var(--accent-red);
 }
 
 .registry-count {
@@ -832,6 +832,49 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   font-size: 12px;
   color: var(--text-tertiary);
   margin-bottom: 16px;
+}
+
+.registry-note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin-bottom: 24px;
+  line-height: 1.6;
+  border-left: 2px solid var(--border);
+  padding-left: 12px;
+}
+
+.badge-analyzed {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.badge-review {
+  background: rgba(255, 204, 0, 0.1);
+  border: 1px solid var(--accent-yellow);
+  color: var(--accent-yellow);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+
+.badge-high-risk {
+  background: rgba(255, 68, 68, 0.1);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
 }
 
 /* ── Footer ──────────────────────────────────────────────── */

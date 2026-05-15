@@ -44,43 +44,51 @@
 
       <h2>The numbers</h2>
       <p>
-        94.1% of public APIs expose at least one pattern that makes them unsafe for unmonitored agentic use.
-        Only 147 APIs — fewer than 6% — passed all five Nexum rules cleanly enough to be marked
-        <strong>Distributable</strong> without human review.
+        16.1% of public APIs expose at least one pattern that makes them unsafe for unmonitored agentic use.
+        83.9% had no findings at all — their specs follow patterns that Nexum's five deterministic
+        rules cannot flag. 8.3% had CRITICAL findings, concentrated in auth leakage and destructive
+        ambiguity patterns.
       </p>
 
       <div class="data-table-wrap">
         <table class="data-table">
           <thead>
             <tr>
-              <th>Verdict</th>
+              <th>Metric</th>
               <th>Count</th>
-              <th>% of total</th>
-              <th>Meaning</th>
+              <th>Percentage</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><span class="verdict-chip DISTRIBUTABLE">Certified</span></td>
-              <td class="mono">147</td>
-              <td class="mono">5.9%</td>
-              <td>Safe for agentic use, no findings</td>
+              <td>APIs scanned</td>
+              <td class="mono">2,517</td>
+              <td class="mono">100%</td>
             </tr>
             <tr>
-              <td><span class="verdict-chip REVIEW_REQUIRED">Review Required</span></td>
-              <td class="mono">689</td>
-              <td class="mono">27.4%</td>
-              <td>Moderate risk — human sign-off recommended</td>
+              <td>APIs with no findings</td>
+              <td class="mono">2,113</td>
+              <td class="mono">83.9%</td>
             </tr>
             <tr>
-              <td><span class="verdict-chip DO_NOT_DISTRIBUTE">Do Not Distribute</span></td>
-              <td class="mono">1,681</td>
-              <td class="mono">66.8%</td>
-              <td>High or critical risk — agent access inadvisable</td>
+              <td>APIs with findings</td>
+              <td class="mono">404</td>
+              <td class="mono">16.1%</td>
+            </tr>
+            <tr>
+              <td>APIs with CRITICAL findings</td>
+              <td class="mono">215</td>
+              <td class="mono">8.5%</td>
             </tr>
           </tbody>
         </table>
       </div>
+      <p>
+        Of the 404 APIs with findings, 94.9% of all individual findings are missing idempotency
+        contracts (NEXUM-004) — the most common agentic risk pattern across the entire catalog.
+        Only 8.3% of APIs had CRITICAL findings, concentrated in auth leakage and destructive
+        ambiguity patterns.
+      </p>
 
       <h2>Findings by rule</h2>
       <p>
@@ -236,7 +244,7 @@
       </ul>
       <p>
         Risk score: <code>CRITICAL=25pts, HIGH=10pts, MEDIUM=5pts, LOW=1pt</code>, capped at 100.
-        Tier 0 (0–30): Distributable. Tier 1 (31–60): Review Required. Tier 2 (61–100): Do Not Distribute.
+        Tier 0 (0–30): no findings or low risk. Tier 1 (31–60): findings requiring attention. Tier 2 (61–100): high-confidence critical findings.
       </p>
       <p>
         Full scan data is available in the <a href="/registry">public registry</a>.

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexum Registry — 2,480 APIs scanned</title>
-  <meta name="description" content="Public registry of APIs scanned by Nexum. See which APIs are safe for agentic use.">
+  <title>Nexum Registry — 2,517 APIs scanned</title>
+  <meta name="description" content="Public registry of APIs scanned by Nexum. 83.9% had no findings. 8.3% had CRITICAL findings.">
   <link rel="stylesheet" href="/static/css/nexum.css">
 </head>
 <body>
@@ -29,8 +29,15 @@
     <div class="section-label">Public Registry</div>
     <h1>APIs scanned by Nexum</h1>
     <p>
-      <span id="registryHeroCount">2,480</span> public APIs audited for agentic risk.
-      Filter by verdict to find safe APIs for your agent stack.
+      <span id="registryHeroCount">2,517</span> public APIs scanned for agentic risk patterns.
+      83.9% had no findings. 8.3% had CRITICAL findings.
+    </p>
+    <p class="registry-note">
+      This registry shows scanner confidence in detected findings,
+      not an overall security rating. "Analyzed" means all findings
+      were detected with high confidence — it does not mean the API
+      is safe for autonomous agent access. Always review the full
+      Trust Manifest before granting agent access.
     </p>
   </div>
 </div>
@@ -42,9 +49,9 @@
     <!-- Filters + search -->
     <div class="registry-filters" id="registryFilters">
       <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="DISTRIBUTABLE">Certified</button>
-      <button class="filter-btn" data-filter="REVIEW_REQUIRED">Review Required</button>
-      <button class="filter-btn" data-filter="DO_NOT_DISTRIBUTE">Do Not Distribute</button>
+      <button class="filter-btn" data-filter="analyzed">Analyzed</button>
+      <button class="filter-btn" data-filter="REVIEW_REQUIRED">Needs Review</button>
+      <button class="filter-btn" data-filter="high-risk">High Risk</button>
       <input
         type="search"
         class="registry-search"
@@ -113,15 +120,26 @@
   'use strict';
 
   const VERDICT_LABEL = {
-    DISTRIBUTABLE:    'Certified',
-    REVIEW_REQUIRED:  'Review Required',
-    DO_NOT_DISTRIBUTE:'Do Not Distribute',
+    DISTRIBUTABLE:    'Analyzed',
+    REVIEW_REQUIRED:  'Needs Review',
+    DO_NOT_DISTRIBUTE:'High Risk',
+  };
+
+  const VERDICT_CLASS = {
+    DISTRIBUTABLE:    'analyzed',
+    REVIEW_REQUIRED:  'REVIEW_REQUIRED',
+    DO_NOT_DISTRIBUTE:'high-risk',
   };
 
   const TIER_FOR_VERDICT = {
     DISTRIBUTABLE:    0,
     REVIEW_REQUIRED:  1,
     DO_NOT_DISTRIBUTE:2,
+  };
+
+  const FILTER_MAP = {
+    'analyzed':   'DISTRIBUTABLE',
+    'high-risk':  'DO_NOT_DISTRIBUTE',
   };
 
   let allData     = [];
@@ -168,7 +186,8 @@
   // ── Render ─────────────────────────────────────────────
   function render() {
     const filtered = allData.filter((row) => {
-      const matchFilter = activeFilter === 'all' || row.verdict === activeFilter;
+      const verdictFilter = FILTER_MAP[activeFilter] || activeFilter;
+      const matchFilter = activeFilter === 'all' || row.verdict === verdictFilter;
       const matchSearch = !searchQuery || row.api.toLowerCase().includes(searchQuery);
       return matchFilter && matchSearch;
     });
@@ -182,15 +201,16 @@
 
     const fragment = document.createDocumentFragment();
     filtered.forEach((row, i) => {
-      const tier   = TIER_FOR_VERDICT[row.verdict] ?? 1;
-      const label  = VERDICT_LABEL[row.verdict] || row.verdict;
-      const mdBadge = `![Nexum Certified](https://getnexum.dev/badge/${tier})`;
+      const tier       = TIER_FOR_VERDICT[row.verdict] ?? 1;
+      const label      = VERDICT_LABEL[row.verdict] || row.verdict;
+      const chipClass  = VERDICT_CLASS[row.verdict] || row.verdict;
+      const mdBadge    = `![Scanned by Nexum](https://getnexum.dev/badge/${tier})`;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="mono" style="color:var(--text-tertiary);width:52px">${i + 1}</td>
         <td class="api-name">${escHtml(row.api)}</td>
-        <td><span class="verdict-chip ${escHtml(row.verdict)}">${escHtml(label)}</span></td>
+        <td><span class="verdict-chip ${escHtml(chipClass)}">${escHtml(label)}</span></td>
         <td>
           <button class="btn-copy" style="font-size:11px" data-md="${escAttr(mdBadge)}" onclick="copyMd(this)">
             Copy badge

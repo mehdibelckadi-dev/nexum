@@ -125,7 +125,7 @@
     });
 
     // Badge markdown
-    const mdText = `![Nexum Certified](https://getnexum.dev/badge/${tier})`;
+    const mdText = `![Scanned by Nexum](https://getnexum.dev/badge/${tier})`;
     badgeMarkdown.textContent = mdText;
     badgeMarkdown.dataset.value = mdText;
 
