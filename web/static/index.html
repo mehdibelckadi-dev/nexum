@@ -75,8 +75,8 @@
       <!-- Drop zone -->
       <div class="drop-zone" id="dropZone">
         <input type="file" id="fileInput" accept=".json,.yaml,.yml" aria-label="Upload API spec">
-        <div class="drop-icon" id="dropIcon">⬆</div>
-        <div class="drop-title" id="dropTitle">Drop your spec here or click to browse</div>
+        <div class="drop-icon" id="dropIcon"><span style="font-size:2rem">↑</span></div>
+        <div class="drop-title" id="dropTitle"><span class="dt-desktop">Drop your spec here or click to browse</span><span class="dt-mobile">Tap to select your file</span></div>
         <p class="drop-sub">
           <span>.json · .yaml · .yml</span><br>
           MCP server definitions and OpenAPI 3.x supported
@@ -438,7 +438,7 @@
           '<span style="color:var(--accent-blue);font-weight:600">' + f.rule + '</span>&nbsp;' +
           '<span style="color:' + sevColor + ';font-weight:600;display:inline-block;min-width:9ch">' + f.sev + '</span>' +
           '<span style="color:var(--text-secondary);display:inline-block;min-width:30ch">' + f.path + '</span>' +
-          '<span style="color:var(--text-tertiary)">' + f.desc + '</span>',
+          '<span class="t-desc" style="color:var(--text-tertiary)">' + f.desc + '</span>',
           t
         );
         t += 400;
