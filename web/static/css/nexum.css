@@ -998,40 +998,87 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   line-height: 1.6;
 }
 
-/* ── Responsive ──────────────────────────────────────────── */
+/* ── Responsive — tablet ≤ 900px ─────────────────────────── */
 @media (max-width: 900px) {
-  .manifest-layout {
-    grid-template-columns: 1fr;
-    gap: 40px;
-  }
-  .steps-grid {
-    grid-template-columns: 1fr;
-  }
+  .manifest-layout { grid-template-columns: 1fr; gap: 40px; }
   .blast-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 680px) {
-  :root { --section-gap: 72px; }
+/* ── Responsive — mobile ≤ 768px ─────────────────────────── */
+/* Covers iPhone SE (375px), iPhone 14 (390px), iPad (768px) */
+@media (max-width: 768px) {
+  :root { --section-gap: 64px; }
 
-  .nav-links { gap: 16px; }
-  .nav-links li:not(:last-child):not(:nth-last-child(2)) { display: none; }
+  /* Nav — keep only CTA */
+  .nav-links li { display: none; }
+  .nav-links li:last-child { display: block; }
 
-  .stat-item { padding: 0 16px; }
-  .stat-value { font-size: 18px; }
+  /* Hero */
+  .hero { padding: 56px 0 40px; }
+  .hero h1 { font-size: clamp(2rem, 8vw, 4rem); }
+  .hero-sub { font-size: 16px; margin-bottom: 36px; }
+  .hero-actions { flex-direction: column; align-items: stretch; }
+  .hero-actions .btn { justify-content: center; width: 100%; }
 
-  .scanner-card { padding: 24px; }
-  .scanner-actions { flex-direction: column; }
+  /* Stats bar — 2 × 2 grid */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding: 0;
+  }
+  .stat-item {
+    padding: 20px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  /* Restore :last-child override from base styles */
+  .stat-item:last-child { border-bottom: none; }
+  /* Right border on left-column cells (odd) */
+  .stat-item:nth-child(odd) { border-right: 1px solid var(--border); }
+  /* Remove bottom border from last row (items 3 and 4) */
+  .stat-item:nth-last-child(-n+2) { border-bottom: none; }
+  .stat-value { font-size: 20px; }
 
+  /* Scanner */
+  .scanner-card { padding: 20px; }
+  .drop-zone { padding: 32px 16px; }
+  .scanner-actions { flex-direction: column; gap: 10px; }
+  .scanner-actions .btn { width: 100%; justify-content: center; }
+
+  /* Rules */
   .rules-grid { grid-template-columns: 1fr; }
+
+  /* How it works */
+  .steps-grid { grid-template-columns: 1fr; }
+
+  /* Trust Manifest */
+  .manifest-layout { grid-template-columns: 1fr; gap: 32px; }
+
+  /* Terminal */
+  .terminal-body {
+    font-size: 11px;
+    padding: 14px 16px;
+    min-height: 160px;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  /* Blast radius */
   .blast-grid { grid-template-columns: 1fr; }
 
-  .terminal-body { font-size: 11px; padding: 16px; }
+  /* Footer */
+  .footer-inner { flex-direction: column; align-items: flex-start; gap: 16px; }
+  .footer-links { flex-wrap: wrap; gap: 12px; }
 
-  .footer-inner { flex-direction: column; align-items: flex-start; }
-  .footer-links { flex-wrap: wrap; gap: 16px; }
+  /* Registry filters + search */
+  .registry-filters { flex-wrap: wrap; gap: 6px; }
+  .registry-search { width: 100%; margin-left: 0; margin-top: 4px; }
 
-  .registry-filters { gap: 6px; }
-  .registry-search { width: 100%; margin-left: 0; }
+  /* Registry table — hide # column, shrink badge btn */
+  .registry-table th:first-child,
+  .registry-table td:first-child { display: none; }
+  .registry-table { font-size: 12px; }
+  .registry-table .btn-copy { font-size: 10px; padding: 5px 8px; }
 }
 
 /* ── Utility ─────────────────────────────────────────────── */
