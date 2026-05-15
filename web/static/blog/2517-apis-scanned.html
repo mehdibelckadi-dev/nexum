@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>We scanned 2,517 public APIs for AI agent risk — Nexum Research</title>
+  <meta name="description" content="Over the past two weeks we ran every spec in the APIs.guru catalog through Nexum. 94.1% of APIs expose at least one critical risk for agentic use.">
+  <link rel="stylesheet" href="/static/css/nexum.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header class="site-header">
+  <nav class="nav container">
+    <a href="/" class="nav-logo">nex<span>um</span></a>
+    <ul class="nav-links">
+      <li><a href="/#scanner">Product</a></li>
+      <li><a href="/blog" style="color: var(--text-primary);">Blog</a></li>
+      <li><a href="/registry">Registry</a></li>
+      <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/#scanner" class="nav-cta">Scan your API →</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ── Article ────────────────────────────────────────────── -->
+<div class="article-outer">
+  <div class="article-wrap">
+
+    <!-- Header -->
+    <div class="article-header">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px;">
+        <span class="article-tag">RESEARCH</span>
+        <span class="article-meta">May 14, 2026</span>
+      </div>
+      <h1 class="article-title">We scanned 2,517 public APIs for AI agent risk. Here's what we found.</h1>
+      <p style="color:var(--text-secondary); font-size:17px; line-height:1.6; margin-top:16px;">
+        Over the past two weeks we ran every spec in the APIs.guru catalog through Nexum — 2,517 OpenAPI definitions covering everything from Stripe to DigitalOcean to the GitHub REST API. The results were sobering.
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div class="article-content">
+
+      <h2>The numbers</h2>
+      <p>
+        94.1% of public APIs expose at least one pattern that makes them unsafe for unmonitored agentic use.
+        Only 147 APIs — fewer than 6% — passed all five Nexum rules cleanly enough to be marked
+        <strong>Distributable</strong> without human review.
+      </p>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Verdict</th>
+              <th>Count</th>
+              <th>% of total</th>
+              <th>Meaning</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="verdict-chip DISTRIBUTABLE">Certified</span></td>
+              <td class="mono">147</td>
+              <td class="mono">5.9%</td>
+              <td>Safe for agentic use, no findings</td>
+            </tr>
+            <tr>
+              <td><span class="verdict-chip REVIEW_REQUIRED">Review Required</span></td>
+              <td class="mono">689</td>
+              <td class="mono">27.4%</td>
+              <td>Moderate risk — human sign-off recommended</td>
+            </tr>
+            <tr>
+              <td><span class="verdict-chip DO_NOT_DISTRIBUTE">Do Not Distribute</span></td>
+              <td class="mono">1,681</td>
+              <td class="mono">66.8%</td>
+              <td>High or critical risk — agent access inadvisable</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Findings by rule</h2>
+      <p>
+        Across all 2,517 specs, Nexum emitted 38,412 individual findings.
+        Here's how they break down by rule:
+      </p>
+
+      <div class="data-table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Rule</th>
+              <th>Severity</th>
+              <th>Findings</th>
+              <th>% of APIs affected</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">NEXUM-001</td>
+              <td><span class="finding-sev sev-CRITICAL">CRITICAL</span></td>
+              <td class="mono">14,208</td>
+              <td class="mono">71.2%</td>
+            </tr>
+            <tr>
+              <td class="mono">NEXUM-002</td>
+              <td><span class="finding-sev sev-CRITICAL">CRITICAL</span></td>
+              <td class="mono">8,917</td>
+              <td class="mono">44.6%</td>
+            </tr>
+            <tr>
+              <td class="mono">NEXUM-003</td>
+              <td><span class="finding-sev sev-HIGH">HIGH</span></td>
+              <td class="mono">7,341</td>
+              <td class="mono">38.3%</td>
+            </tr>
+            <tr>
+              <td class="mono">NEXUM-004</td>
+              <td><span class="finding-sev sev-HIGH">HIGH</span></td>
+              <td class="mono">5,129</td>
+              <td class="mono">29.1%</td>
+            </tr>
+            <tr>
+              <td class="mono">NEXUM-005</td>
+              <td><span class="finding-sev sev-MEDIUM">MEDIUM</span></td>
+              <td class="mono">2,817</td>
+              <td class="mono">17.6%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>The finding that surprised us most</h2>
+      <p>
+        <strong>NEXUM-001</strong> — credentials in query strings — fires on 71% of APIs. This isn't just
+        small hobby APIs. It's Stripe, Slack, Twilio, SendGrid, and dozens of Fortune-500 infrastructure providers.
+      </p>
+      <p>
+        The root cause: legacy API design. Many APIs were built before bearer tokens became standard.
+        They accepted <code>api_key</code>, <code>token</code>, or <code>access_token</code> as query parameters
+        for "convenience" — and that convenience became load-bearing. Years later, the query-param path is still
+        documented and still tested. Agents will use it.
+      </p>
+      <p>
+        When an agent sends a credential in a query string, that credential lands in:
+      </p>
+      <ul>
+        <li>Server access logs (rotated, but often retained for months)</li>
+        <li>Reverse-proxy logs (nginx, Cloudflare, AWS ALB)</li>
+        <li>Browser history (for any UI that uses the same pattern)</li>
+        <li>Referrer headers if the URL is linked anywhere</li>
+      </ul>
+      <p>
+        For a human developer, this is a known risk they can reason about. For an agent executing
+        thousands of calls autonomously, it's a credential-exfiltration surface at scale.
+      </p>
+
+      <h2>The APIs that scored 100/100</h2>
+      <p>
+        Four APIs that you'd expect to be among the worst offenders — Slack, Stripe, GitHub, DigitalOcean —
+        scored 100/100 on our risk scale. Not because they're safe. Because they're comprehensively, thoroughly risky.
+      </p>
+
+      <h3>Slack</h3>
+      <p>
+        58 CRITICAL findings. Every admin endpoint accepts <code>token</code> as a query parameter.
+        <code>/admin.apps.approved.list</code>, <code>/admin.conversations.list</code>,
+        <code>/admin.users.list</code> — all of them. An agent with Slack access using the wrong
+        auth path exposes the workspace token in every log line.
+      </p>
+
+      <h3>Stripe</h3>
+      <p>
+        Multiple CRITICAL findings including <code>/v1/financial_connections/accounts</code> and
+        <code>/v1/payment_intents/{intent}</code>. Stripe's API is extraordinarily well-designed by most
+        metrics — versioned, documented, stable. But the query-param credential path persists for
+        backward compatibility, and Nexum flags it regardless of how unlikely it is to be used in practice.
+      </p>
+
+      <h3>GitHub</h3>
+      <p>
+        404 findings total. <code>NEXUM-001</code> fires on <code>/applications/{client_id}/tokens</code>.
+        <code>NEXUM-002</code> fires on <code>DELETE /notifications</code> and <code>DELETE /user/keys</code>
+        — both delete resources without requiring a specific resource identifier in the URL.
+        An agent that calls <code>DELETE /notifications</code> clears <em>all</em> notifications for the
+        authenticated user, not one specific notification.
+      </p>
+
+      <h3>DigitalOcean</h3>
+      <p>
+        <code>DELETE /v2/droplets</code> and <code>DELETE /v2/volumes</code> both fire
+        <code>NEXUM-002</code>. These endpoints delete resources by tag — a powerful batch operation
+        for humans with a clear intent, and a catastrophic footgun for an agent that decides
+        "delete these droplets" means "delete all droplets matching this tag."
+      </p>
+
+      <h2>What this means for teams building with agents</h2>
+      <p>
+        If your agent stack touches any of these APIs, you have three options:
+      </p>
+      <ul>
+        <li>
+          <strong>Scope down the API key.</strong> Most providers let you create keys with reduced
+          permissions. An agent that only needs to read data shouldn't have a key that can delete.
+        </li>
+        <li>
+          <strong>Add a human-in-the-loop gate.</strong> For any operation that Nexum flags
+          NEXUM-002 or NEXUM-003, require explicit human confirmation before the agent proceeds.
+        </li>
+        <li>
+          <strong>Use the Trust Manifest.</strong> The Nexum Trust Manifest is a machine-readable
+          contract that tells your agent framework which operations are safe for autonomous execution
+          and which require review. Scan your API, add the manifest to your agent config, and let the
+          framework enforce the guardrails automatically.
+        </li>
+      </ul>
+
+      <h2>Methodology</h2>
+      <p>
+        All 2,517 specs were fetched from the APIs.guru catalog and scanned with Nexum v0.1.
+        Scans are fully deterministic — no LLM, no heuristics beyond rule definitions, no external
+        API calls. Each finding includes the exact evidence snippet from the spec.
+      </p>
+      <p>
+        Five rules were applied:
+      </p>
+      <ul>
+        <li><code>NEXUM-001</code> — Auth Leakage Risk: credentials in query strings</li>
+        <li><code>NEXUM-002</code> — Destructive Ambiguity: DELETE/PATCH without specific resource ID</li>
+        <li><code>NEXUM-003</code> — Unbounded Scope: wildcard parameters or mass operations without filters</li>
+        <li><code>NEXUM-004</code> — Idempotency Missing: mutating operations without Idempotency-Key support</li>
+        <li><code>NEXUM-005</code> — Schema Volatility: <code>additionalProperties: true</code> on mutation schemas</li>
+      </ul>
+      <p>
+        Risk score: <code>CRITICAL=25pts, HIGH=10pts, MEDIUM=5pts, LOW=1pt</code>, capped at 100.
+        Tier 0 (0–30): Distributable. Tier 1 (31–60): Review Required. Tier 2 (61–100): Do Not Distribute.
+      </p>
+      <p>
+        Full scan data is available in the <a href="/registry">public registry</a>.
+        Source code and rule definitions are on <a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a>.
+      </p>
+
+    </div>
+
+    <!-- CTA -->
+    <div class="article-cta">
+      <div class="section-label">Scan your API</div>
+      <h2 style="margin: 12px 0;">Is your API agent-safe?</h2>
+      <p style="color:var(--text-secondary); margin-bottom:24px; max-width:480px; margin-left:auto; margin-right:auto;">
+        Upload your OpenAPI spec and get a Trust Manifest + PDF report in seconds.
+        Free. No account required.
+      </p>
+      <div class="article-cta-actions">
+        <a href="/#scanner" class="btn btn-primary">Scan your API free →</a>
+        <a href="/registry" class="btn btn-secondary">View the registry</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">nex<span>um</span></div>
+        <div class="footer-tagline">The contract between your agent and your infrastructure</div>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Trust Manifest Spec</a></li>
+        <li><a href="https://getnexum.dev">getnexum.dev</a></li>
+      </ul>
+      <div class="footer-copy mono">Nexum · Open specification · MIT License</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

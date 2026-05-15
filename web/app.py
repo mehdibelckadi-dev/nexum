@@ -76,6 +76,16 @@ async def registry():
     return FileResponse(_STATIC / "registry.html")
 
 
+@app.get("/blog")
+async def blog():
+    return FileResponse(_STATIC / "blog" / "index.html")
+
+
+@app.get("/blog/2517-apis-scanned")
+async def blog_article():
+    return FileResponse(_STATIC / "blog" / "2517-apis-scanned.html")
+
+
 @app.get("/registry-data")
 async def registry_data():
     path = _STATIC / "registry_data.json"
