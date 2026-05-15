@@ -29,15 +29,9 @@
     <div class="section-label">Public Registry</div>
     <h1>APIs scanned by Nexum</h1>
     <p>
-      <span id="registryHeroCount">2,517</span> public APIs scanned for agentic risk patterns.
-      83.9% had no findings. 8.3% had CRITICAL findings.
-    </p>
-    <p class="registry-note">
-      This registry shows scanner confidence in detected findings,
-      not an overall security rating. "Analyzed" means all findings
-      were detected with high confidence — it does not mean the API
-      is safe for autonomous agent access. Always review the full
-      Trust Manifest before granting agent access.
+      2,517 public APIs scanned for AI agent risk.<br>
+      Green = no critical risk patterns detected.<br>
+      Yellow = risk findings detected — review the Trust Manifest before granting agent access.
     </p>
   </div>
 </div>
@@ -49,9 +43,8 @@
     <!-- Filters + search -->
     <div class="registry-filters" id="registryFilters">
       <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="analyzed">Analyzed</button>
-      <button class="filter-btn" data-filter="REVIEW_REQUIRED">Needs Review</button>
-      <button class="filter-btn" data-filter="high-risk">High Risk</button>
+      <button class="filter-btn" data-filter="no-findings">✓ No critical findings</button>
+      <button class="filter-btn" data-filter="findings">⚠ Findings detected</button>
       <input
         type="search"
         class="registry-search"
@@ -71,13 +64,12 @@
           <tr>
             <th>#</th>
             <th>API Name</th>
-            <th>Verdict</th>
-            <th>Badge</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody id="registryBody">
           <tr>
-            <td colspan="4" style="text-align:center; padding: 40px; color: var(--text-tertiary);">
+            <td colspan="3" style="text-align:center; padding: 40px; color: var(--text-tertiary);">
               <div class="spinner" style="margin: 0 auto 12px;"></div>
               Loading registry…
             </td>
@@ -119,38 +111,19 @@
 (function () {
   'use strict';
 
-  const VERDICT_LABEL = {
-    DISTRIBUTABLE:    'Analyzed',
-    REVIEW_REQUIRED:  'Needs Review',
-    DO_NOT_DISTRIBUTE:'High Risk',
+  const FILTER_VERDICT = {
+    'no-findings': 'DISTRIBUTABLE',
+    'findings':    'REVIEW_REQUIRED',
   };
 
-  const VERDICT_CLASS = {
-    DISTRIBUTABLE:    'analyzed',
-    REVIEW_REQUIRED:  'REVIEW_REQUIRED',
-    DO_NOT_DISTRIBUTE:'high-risk',
-  };
-
-  const TIER_FOR_VERDICT = {
-    DISTRIBUTABLE:    0,
-    REVIEW_REQUIRED:  1,
-    DO_NOT_DISTRIBUTE:2,
-  };
-
-  const FILTER_MAP = {
-    'analyzed':   'DISTRIBUTABLE',
-    'high-risk':  'DO_NOT_DISTRIBUTE',
-  };
-
-  let allData     = [];
+  let allData      = [];
   let activeFilter = 'all';
   let searchQuery  = '';
 
-  const tbody           = document.getElementById('registryBody');
-  const countEl         = document.getElementById('registryCount');
-  const searchInput     = document.getElementById('registrySearch');
-  const filterBtns      = document.querySelectorAll('.filter-btn');
-  const heroCount       = document.getElementById('registryHeroCount');
+  const tbody       = document.getElementById('registryBody');
+  const countEl     = document.getElementById('registryCount');
+  const searchInput = document.getElementById('registrySearch');
+  const filterBtns  = document.querySelectorAll('.filter-btn');
 
   // ── Load data ──────────────────────────────────────────
   fetch('/registry-data')
@@ -159,12 +132,11 @@
       return r.json();
     })
     .then((data) => {
-      allData = data;
-      if (heroCount) heroCount.textContent = data.length.toLocaleString();
+      allData = data.filter((e) => e.verdict !== 'DO_NOT_DISTRIBUTE');
       render();
     })
     .catch(() => {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--accent-red);">Failed to load registry data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--accent-red);">Failed to load registry data.</td></tr>';
       countEl.textContent = '';
     });
 
@@ -185,9 +157,9 @@
 
   // ── Render ─────────────────────────────────────────────
   function render() {
+    const targetVerdict = FILTER_VERDICT[activeFilter];
     const filtered = allData.filter((row) => {
-      const verdictFilter = FILTER_MAP[activeFilter] || activeFilter;
-      const matchFilter = activeFilter === 'all' || row.verdict === verdictFilter;
+      const matchFilter = !targetVerdict || row.verdict === targetVerdict;
       const matchSearch = !searchQuery || row.api.toLowerCase().includes(searchQuery);
       return matchFilter && matchSearch;
     });
@@ -195,27 +167,21 @@
     countEl.textContent = filtered.length.toLocaleString() + ' APIs';
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-tertiary);">No APIs match this filter.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-tertiary);">No APIs match this filter.</td></tr>';
       return;
     }
 
     const fragment = document.createDocumentFragment();
     filtered.forEach((row, i) => {
-      const tier       = TIER_FOR_VERDICT[row.verdict] ?? 1;
-      const label      = VERDICT_LABEL[row.verdict] || row.verdict;
-      const chipClass  = VERDICT_CLASS[row.verdict] || row.verdict;
-      const mdBadge    = `![Scanned by Nexum](https://getnexum.dev/badge/${tier})`;
+      const isDistributable = row.verdict === 'DISTRIBUTABLE';
+      const badgeClass = isDistributable ? 'badge-no-findings' : 'badge-findings';
+      const badgeLabel = isDistributable ? '✓ No critical findings' : '⚠ Findings detected';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td class="mono" style="color:var(--text-tertiary);width:52px">${i + 1}</td>
         <td class="api-name">${escHtml(row.api)}</td>
-        <td><span class="verdict-chip ${escHtml(chipClass)}">${escHtml(label)}</span></td>
-        <td>
-          <button class="btn-copy" style="font-size:11px" data-md="${escAttr(mdBadge)}" onclick="copyMd(this)">
-            Copy badge
-          </button>
-        </td>
+        <td><span class="${badgeClass}">${badgeLabel}</span></td>
       `;
       fragment.appendChild(tr);
     });
@@ -224,29 +190,12 @@
     tbody.appendChild(fragment);
   }
 
-  // ── Copy badge ─────────────────────────────────────────
-  window.copyMd = function (btn) {
-    const text = btn.dataset.md;
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = 'Copied ✓';
-      btn.classList.add('copied');
-      setTimeout(() => {
-        btn.textContent = 'Copy badge';
-        btn.classList.remove('copied');
-      }, 2000);
-    });
-  };
-
   function escHtml(str) {
     return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
-  }
-
-  function escAttr(str) {
-    return String(str).replace(/"/g, '&quot;');
   }
 })();
 </script>
