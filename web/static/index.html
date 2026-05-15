@@ -140,6 +140,7 @@
       <div class="terminal-header">
         <div class="terminal-dots"><span></span><span></span><span></span></div>
         <div class="terminal-title mono">NEXUM SCANNER · LIVE</div>
+        <span class="mono" style="font-size:10px;color:var(--text-tertiary);letter-spacing:0.06em;white-space:nowrap;flex-shrink:0">2,517 APIs scanned</span>
       </div>
       <div class="terminal-body" id="terminalBody"></div>
     </div>
@@ -382,21 +383,33 @@
     {
       host: 'stripe.com',
       findings: [
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/tokens',  desc: 'credentials in query string' },
-        { rule: 'NEXUM-004', sev: 'HIGH',     path: '/v1/charges', desc: 'no idempotency contract' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/financial_connections/accounts', desc: 'credentials in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/payment_intents/{intent}',        desc: 'credentials in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/sources/{source}',                desc: 'credentials in query string' },
       ],
     },
     {
       host: 'slack.com',
       findings: [
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.approved.list', desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.approved.list',   desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.restricted.list', desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.conversations.list',   desc: 'token in query string' },
       ],
+      more: '... and 55 more CRITICAL findings',
     },
     {
       host: 'digitalocean.com',
       findings: [
         { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/droplets', desc: 'DELETE without resource scope' },
         { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/volumes',  desc: 'DELETE without resource scope' },
+      ],
+    },
+    {
+      host: 'github.com',
+      findings: [
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/applications/{client_id}/tokens', desc: 'auth in query string' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/notifications',                   desc: 'DELETE without scope' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/user/keys',                       desc: 'DELETE without scope' },
       ],
     },
   ];
@@ -437,12 +450,17 @@
           '<span style="color:var(--text-tertiary)">→ </span>' +
           '<span style="color:var(--accent-blue);font-weight:600">' + f.rule + '</span>&nbsp;' +
           '<span style="color:' + sevColor + ';font-weight:600;display:inline-block;min-width:9ch">' + f.sev + '</span>' +
-          '<span style="color:var(--text-secondary);display:inline-block;min-width:30ch">' + f.path + '</span>' +
+          '<span style="color:var(--text-secondary);display:inline-block;min-width:36ch">' + f.path + '</span>' +
           '<span class="t-desc" style="color:var(--text-tertiary)">' + f.desc + '</span>',
           t
         );
         t += 400;
       });
+
+      if (api.more) {
+        addLine('<span style="color:var(--text-secondary)">' + api.more + '</span>', t);
+        t += 400;
+      }
 
       t += 3000;
     });
