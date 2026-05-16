@@ -43,8 +43,9 @@
     <!-- Filters + search -->
     <div class="registry-filters" id="registryFilters">
       <button class="filter-btn active" data-filter="all">All</button>
-      <button class="filter-btn" data-filter="no-findings">✓ No critical findings</button>
-      <button class="filter-btn" data-filter="findings">⚠ Findings detected</button>
+      <button class="filter-btn" data-filter="no-findings">✓ No findings</button>
+      <button class="filter-btn" data-filter="has-findings">⚠ Has findings</button>
+      <button class="filter-btn" data-filter="has-critical">🔴 Has CRITICAL</button>
       <input
         type="search"
         class="registry-search"
@@ -64,12 +65,15 @@
           <tr>
             <th>#</th>
             <th>API Name</th>
+            <th style="text-align:right;padding-right:20px">Score</th>
+            <th style="text-align:right;padding-right:20px">Critical</th>
             <th>Status</th>
+            <th>Badge</th>
           </tr>
         </thead>
         <tbody id="registryBody">
           <tr>
-            <td colspan="3" style="text-align:center; padding: 40px; color: var(--text-tertiary);">
+            <td colspan="6" style="text-align:center; padding: 40px; color: var(--text-tertiary);">
               <div class="spinner" style="margin: 0 auto 12px;"></div>
               Loading registry…
             </td>
@@ -111,11 +115,6 @@
 (function () {
   'use strict';
 
-  const FILTER_VERDICT = {
-    'no-findings': 'DISTRIBUTABLE',
-    'findings':    'REVIEW_REQUIRED',
-  };
-
   let allData      = [];
   let activeFilter = 'all';
   let searchQuery  = '';
@@ -125,18 +124,66 @@
   const searchInput = document.getElementById('registrySearch');
   const filterBtns  = document.querySelectorAll('.filter-btn');
 
+  const TIER_COLOR = {
+    0: 'var(--accent-green)',
+    1: 'var(--accent-yellow)',
+    2: 'var(--accent-red)',
+  };
+
+  // ── Normalize ─────────────────────────────────────────
+  function normalize(row) {
+    // New format: has total_findings field
+    if (typeof row.total_findings === 'number') {
+      let badgeClass, badgeLabel, filterKey;
+      if (row.total_findings === -1) {
+        badgeClass = 'badge-parse-error';
+        badgeLabel = '— Parse error';
+        filterKey  = 'parse-error';
+        return { api: row.api, score: null, critical: null, tier: row.tier ?? 0, badgeClass, badgeLabel, filterKey };
+      }
+      if (row.critical > 0) {
+        badgeClass = 'badge-critical';
+        badgeLabel = `🔴 ${row.critical} CRITICAL`;
+        filterKey  = 'has-critical';
+      } else if (row.total_findings > 0) {
+        badgeClass = 'badge-findings';
+        badgeLabel = `⚠ ${row.total_findings} findings`;
+        filterKey  = 'has-findings';
+      } else {
+        badgeClass = 'badge-no-findings';
+        badgeLabel = '✓ No findings';
+        filterKey  = 'no-findings';
+      }
+      return { api: row.api, score: row.score, critical: row.critical, tier: row.tier ?? 0, badgeClass, badgeLabel, filterKey };
+    }
+
+    // Legacy format: {api, verdict}
+    if (row.verdict === 'DO_NOT_DISTRIBUTE') return null;
+    const dist = row.verdict === 'DISTRIBUTABLE';
+    return {
+      api: row.api, score: null, critical: null, tier: dist ? 0 : 1,
+      badgeClass: dist ? 'badge-no-findings' : 'badge-findings',
+      badgeLabel: dist ? '✓ No findings' : '⚠ Findings detected',
+      filterKey:  dist ? 'no-findings' : 'has-findings',
+    };
+  }
+
   // ── Load data ──────────────────────────────────────────
   fetch('/registry-data')
-    .then((r) => {
-      if (!r.ok) throw new Error('Failed to load registry');
-      return r.json();
-    })
+    .then((r) => { if (!r.ok) throw new Error(); return r.json(); })
     .then((data) => {
-      allData = data.filter((e) => e.verdict !== 'DO_NOT_DISTRIBUTE');
+      allData = data
+        .map(normalize)
+        .filter(Boolean)
+        .sort((a, b) => {
+          const critDiff = (b.critical ?? 0) - (a.critical ?? 0);
+          if (critDiff !== 0) return critDiff;
+          return (b.score ?? 0) - (a.score ?? 0);
+        });
       render();
     })
     .catch(() => {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--accent-red);">Failed to load registry data.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--accent-red);">Failed to load registry data.</td></tr>';
       countEl.textContent = '';
     });
 
@@ -157,9 +204,9 @@
 
   // ── Render ─────────────────────────────────────────────
   function render() {
-    const targetVerdict = FILTER_VERDICT[activeFilter];
+    const targetKey = activeFilter !== 'all' ? activeFilter : null;
     const filtered = allData.filter((row) => {
-      const matchFilter = !targetVerdict || row.verdict === targetVerdict;
+      const matchFilter = !targetKey || row.filterKey === targetKey;
       const matchSearch = !searchQuery || row.api.toLowerCase().includes(searchQuery);
       return matchFilter && matchSearch;
     });
@@ -167,21 +214,31 @@
     countEl.textContent = filtered.length.toLocaleString() + ' APIs';
 
     if (filtered.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-tertiary);">No APIs match this filter.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-tertiary);">No APIs match this filter.</td></tr>';
       return;
     }
 
     const fragment = document.createDocumentFragment();
     filtered.forEach((row, i) => {
-      const isDistributable = row.verdict === 'DISTRIBUTABLE';
-      const badgeClass = isDistributable ? 'badge-no-findings' : 'badge-findings';
-      const badgeLabel = isDistributable ? '✓ No critical findings' : '⚠ Findings detected';
+      const tierColor  = TIER_COLOR[row.tier] ?? TIER_COLOR[1];
+      const scoreHtml  = row.score !== null
+        ? `<span class="mono" style="color:${tierColor}">${row.score}</span>`
+        : `<span style="color:var(--text-tertiary)">—</span>`;
+      const critHtml   = row.critical !== null
+        ? (row.critical > 0
+            ? `<span class="mono" style="color:var(--accent-red);font-weight:600">${row.critical}</span>`
+            : `<span class="mono" style="color:var(--text-tertiary)">0</span>`)
+        : `<span style="color:var(--text-tertiary)">—</span>`;
+      const statusHtml = `<span class="mono" style="font-size:11px;color:${tierColor}">Tier ${row.tier}</span>`;
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="mono" style="color:var(--text-tertiary);width:52px">${i + 1}</td>
+        <td class="mono" style="color:var(--text-tertiary);width:48px">${i + 1}</td>
         <td class="api-name">${escHtml(row.api)}</td>
-        <td><span class="${badgeClass}">${badgeLabel}</span></td>
+        <td style="text-align:right;padding-right:20px">${scoreHtml}</td>
+        <td style="text-align:right;padding-right:20px">${critHtml}</td>
+        <td>${statusHtml}</td>
+        <td><span class="${row.badgeClass}">${row.badgeLabel}</span></td>
       `;
       fragment.appendChild(tr);
     });
@@ -191,11 +248,7 @@
   }
 
   function escHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 })();
 </script>

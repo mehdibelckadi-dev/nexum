@@ -901,6 +901,30 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   white-space: nowrap;
 }
 
+.badge-critical {
+  background: rgba(255,68,68,0.1);
+  border: 1px solid var(--accent-red);
+  color: var(--accent-red);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-parse-error {
+  background: rgba(128,128,128,0.08);
+  border: 1px solid rgba(128,128,128,0.25);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 /* ── Footer ──────────────────────────────────────────────── */
 .site-footer {
   border-top: 1px solid var(--border);
