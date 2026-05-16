@@ -98,17 +98,24 @@ class TestRegistryDataEndpoint:
         data = client.get("/registry-data").json()
         for entry in data:
             assert "api" in entry
-            assert "verdict" in entry
+            # new format fields (verdict field removed in v2 data)
+            has_new = "total_findings" in entry
+            has_legacy = "verdict" in entry
+            assert has_new or has_legacy, f"Entry {entry.get('api')} has neither new nor legacy fields"
 
     def test_count_meets_minimum(self):
         data = client.get("/registry-data").json()
         assert len(data) >= 2500
 
-    def test_verdicts_are_valid_values(self):
+    def test_new_format_fields_are_valid(self):
         data = client.get("/registry-data").json()
-        valid = {"DISTRIBUTABLE", "REVIEW_REQUIRED", "DO_NOT_DISTRIBUTE"}
-        for entry in data:
-            assert entry["verdict"] in valid
+        new_format = [e for e in data if "total_findings" in e]
+        for entry in new_format:
+            assert isinstance(entry["total_findings"], int)
+            assert entry["total_findings"] >= -1
+            assert entry["tier"] in {0, 1, 2}
+            assert isinstance(entry["critical"], int) and entry["critical"] >= 0
+            assert isinstance(entry["score"], (int, float)) and 0 <= entry["score"] <= 100
 
 
 class TestRegistryPageEndpoint:

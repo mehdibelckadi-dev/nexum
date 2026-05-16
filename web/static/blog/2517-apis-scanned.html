@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>We scanned 2,517 public APIs for AI agent risk — Nexum Research</title>
+  <title>We scanned 2,608 public APIs for AI agent risk — Nexum Research</title>
   <meta name="description" content="Over the past two weeks we ran every spec in the APIs.guru catalog through Nexum. 94.1% of APIs expose at least one critical risk for agentic use.">
   <link rel="stylesheet" href="/static/css/nexum.css">
 </head>
@@ -33,9 +33,9 @@
         <span class="article-tag">RESEARCH</span>
         <span class="article-meta">May 14, 2026</span>
       </div>
-      <h1 class="article-title">We scanned 2,517 public APIs for AI agent risk. Here's what we found.</h1>
+      <h1 class="article-title">We scanned 2,608 public APIs for AI agent risk. Here's what we found.</h1>
       <p style="color:var(--text-secondary); font-size:17px; line-height:1.6; margin-top:16px;">
-        Over the past two weeks we ran every spec in the APIs.guru catalog through Nexum — 2,517 OpenAPI definitions covering everything from Stripe to DigitalOcean to the GitHub REST API. The results were sobering.
+        Over the past two weeks we ran every spec in the APIs.guru catalog through Nexum — 2,608 OpenAPI definitions covering everything from Stripe to DigitalOcean to the GitHub REST API. The results were sobering.
       </p>
     </div>
 
@@ -45,8 +45,8 @@
       <h2>The numbers</h2>
       <p>
         16.1% of public APIs expose at least one pattern that makes them unsafe for unmonitored agentic use.
-        83.9% had no findings at all — their specs follow patterns that Nexum's five deterministic
-        rules cannot flag. 8.3% had CRITICAL findings, concentrated in auth leakage and destructive
+        22.9% had no findings at all — their specs follow patterns that Nexum's five deterministic
+        rules cannot flag. 8.5% had CRITICAL findings, concentrated in auth leakage and destructive
         ambiguity patterns.
       </p>
 
@@ -62,37 +62,37 @@
           <tbody>
             <tr>
               <td>APIs scanned</td>
-              <td class="mono">2,517</td>
+              <td class="mono">2,608</td>
               <td class="mono">100%</td>
             </tr>
             <tr>
               <td>APIs with no findings</td>
-              <td class="mono">2,113</td>
-              <td class="mono">83.9%</td>
+              <td class="mono">598</td>
+              <td class="mono">22.9%</td>
             </tr>
             <tr>
               <td>APIs with findings</td>
-              <td class="mono">404</td>
-              <td class="mono">16.1%</td>
+              <td class="mono">2,006</td>
+              <td class="mono">76.9%</td>
             </tr>
             <tr>
               <td>APIs with CRITICAL findings</td>
-              <td class="mono">215</td>
+              <td class="mono">222</td>
               <td class="mono">8.5%</td>
             </tr>
           </tbody>
         </table>
       </div>
       <p>
-        Of the 404 APIs with findings, 94.9% of all individual findings are missing idempotency
+        Of the 2,006 APIs with findings, 94.9% of all individual findings are missing idempotency
         contracts (NEXUM-004) — the most common agentic risk pattern across the entire catalog.
-        Only 8.3% of APIs had CRITICAL findings, concentrated in auth leakage and destructive
+        Only 8.5% of APIs had CRITICAL findings, concentrated in auth leakage and destructive
         ambiguity patterns.
       </p>
 
       <h2>Findings by rule</h2>
       <p>
-        Across all 2,517 specs, Nexum emitted 38,412 individual findings.
+        Across all 2,608 specs, Nexum emitted 38,412 individual findings.
         Here's how they break down by rule:
       </p>
 
@@ -228,7 +228,7 @@
 
       <h2>Methodology</h2>
       <p>
-        All 2,517 specs were fetched from the APIs.guru catalog and scanned with Nexum v0.1.
+        All 2,608 specs were fetched from the APIs.guru catalog and scanned with Nexum v0.1.
         Scans are fully deterministic — no LLM, no heuristics beyond rule definitions, no external
         API calls. Each finding includes the exact evidence snippet from the spec.
       </p>
