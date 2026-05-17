@@ -118,6 +118,12 @@ class TestRegistryDataEndpoint:
             assert isinstance(entry["score"], (int, float)) and 0 <= entry["score"] <= 100
 
 
+class TestReportsStaticEndpoint:
+    def test_report_404_for_missing_file(self):
+        res = client.get("/reports/nonexistent.pdf")
+        assert res.status_code == 404
+
+
 class TestRegistryPageEndpoint:
     def test_registry_serves_html(self):
         res = client.get("/registry")

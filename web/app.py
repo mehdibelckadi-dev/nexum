@@ -94,6 +94,14 @@ async def registry_data():
     return JSONResponse(content=__import__("json").loads(path.read_text(encoding="utf-8")))
 
 
+@app.get("/reports/{filename}")
+async def serve_report(filename: str):
+    report_path = _STATIC / "reports" / filename
+    if not report_path.exists():
+        raise HTTPException(status_code=404, detail="Report not found")
+    return FileResponse(report_path, media_type="application/pdf")
+
+
 @app.post("/scan")
 async def scan(file: UploadFile = File(...)):
     content = await file.read()
