@@ -7,7 +7,7 @@ import pytest
 
 from nexum.core import engine
 from nexum.core.engine import _SEVERITY_ORDER
-from nexum.core.ingestor import ingest
+from nexum.core.ingestor import NexumIngestError, ingest
 from nexum.core.rules.auth_leakage import AuthLeakageRisk
 from nexum.core.rules.base import Finding
 from nexum.core.rules.destructive_ambiguity import DestructiveAmbiguity
@@ -862,3 +862,24 @@ class TestExcludePathFiltering:
 
         assert all(f.path not in excluded for f in filtered)
         assert calculate(filtered).score < calculate(full_findings).score
+
+
+class TestIngestorFormatDetection:
+    def test_openapi_without_version_header_is_detected(self, tmp_path):
+        spec = tmp_path / "partial.yaml"
+        spec.write_text(
+            "paths:\n"
+            "  /users:\n"
+            "    get:\n"
+            "      responses:\n"
+            "        '200': {}\n"
+        )
+        result = ingest(spec)
+        assert result["_source_format"] == "openapi"
+        assert "/users" in result["paths"]
+
+    def test_non_openapi_without_paths_is_rejected(self, tmp_path):
+        spec = tmp_path / "unknown.yaml"
+        spec.write_text("name: something\nversion: 1.0\n")
+        with pytest.raises(NexumIngestError):
+            ingest(spec)

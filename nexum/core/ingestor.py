@@ -57,7 +57,19 @@ def _load_raw(path: Path) -> dict[str, Any]:
 
 
 def _is_openapi(raw: dict[str, Any]) -> bool:
-    return "openapi" in raw or "swagger" in raw
+    return (
+        "openapi" in raw
+        or "swagger" in raw
+        or (
+            "paths" in raw
+            and isinstance(raw["paths"], dict)
+            and any(
+                any(method in ops for method in ("get", "post", "put", "patch", "delete"))
+                for ops in raw["paths"].values()
+                if isinstance(ops, dict)
+            )
+        )
+    )
 
 
 def _is_mcp(raw: dict[str, Any]) -> bool:
