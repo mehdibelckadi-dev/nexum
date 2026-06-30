@@ -10,6 +10,21 @@ from .base import BaseRule, Finding
 _MUTATING_METHODS: frozenset[str] = frozenset({"POST", "PUT", "PATCH"})
 _IDEMPOTENCY_HEADER = "idempotency-key"
 
+# TD-016: Path/operationId tokens that mark a financial / irreversible domain.
+# A duplicate mutation here has no trivial remedy inside the spec (chargebacks,
+# regulatory exposure), so NEXUM-004 escalates HIGH -> CRITICAL when matched.
+_FINANCIAL_PATH_PATTERNS: frozenset[str] = frozenset({
+    "charge", "charges",
+    "payment", "payments",
+    "invoice", "invoices",
+    "refund", "refunds",
+    "transfer", "transfers",
+    "payout", "payouts",
+    "withdraw", "withdrawal", "withdrawals",
+    "billing",
+    "subscription", "subscriptions",
+})
+
 # MCP tool names that imply a read-only operation and should be skipped.
 _READ_KEYWORDS: frozenset[str] = frozenset({
     "list", "get", "read", "fetch", "show", "describe", "find", "search",
@@ -29,6 +44,23 @@ def _has_idempotency_header(operation: dict[str, Any]) -> bool:
 def _is_mcp_read_only(operation: dict[str, Any]) -> bool:
     tokens = set(operation.get("operationId", "").lower().split("_"))
     return any(kw in tokens for kw in _READ_KEYWORDS)
+
+
+def _is_financial_domain(path: str, operation_id: str = "") -> bool:
+    """Detect financial/irreversible domain for NEXUM-004 severity escalation.
+
+    Path segments use EXACT match (a segment must equal a known pattern) to
+    avoid substring false positives such as 'exchanges' matching 'charges'.
+    operationId uses substring match because it is a deliberate, semantically
+    explicit identifier (e.g. 'createCharge', 'refundPayment').
+    """
+    segments = [s.lower() for s in path.strip("/").split("/") if s and "{" not in s]
+    if any(seg in _FINANCIAL_PATH_PATTERNS for seg in segments):
+        return True
+    if operation_id:
+        op_lower = operation_id.lower()
+        return any(pattern in op_lower for pattern in _FINANCIAL_PATH_PATTERNS)
+    return False
 
 
 # Per-operation overrides for human_explanation and guardrail_suggestion.
@@ -105,10 +137,21 @@ class IdempotencyMissing(BaseRule):
                     "The server must store the key and return the original response "
                     "for duplicate requests received within a reasonable window.",
                 ))
+
+                if _is_financial_domain(path, op_id):
+                    severity = "CRITICAL"
+                    _expl = (
+                        f"{_expl} Financial domain detected — duplicate execution "
+                        "risk includes chargebacks, regulatory exposure, and customer "
+                        "dispute costs beyond simple data correction."
+                    )
+                else:
+                    severity = self.SEVERITY
+
                 findings.append(Finding(
                     rule_id=self.RULE_ID,
                     rule_name=self.RULE_NAME,
-                    severity=self.SEVERITY,
+                    severity=severity,
                     path=path,
                     method=method.upper(),
                     evidence_snippet=json.dumps(snippet, indent=2),

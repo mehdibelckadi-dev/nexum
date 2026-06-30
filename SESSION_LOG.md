@@ -343,3 +343,26 @@ DO_NOT_DISTRIBUTE instead of ERROR.
 
 findings_log.jsonl: 72 entries (manual scans)
 PDFs generated: 2,480
+
+## [TD-016] Domain-aware severity escalation en NEXUM-004 — RESUELTO
+
+**Problema:** NEXUM-004 asignaba HIGH de forma plana sin distinguir
+dominio. Un POST /v1/charges sin idempotency tiene consecuencias
+(chargebacks, exposición regulatoria PCI-DSS) muy distintas a un
+POST /v1/comments sin idempotency (remedio trivial con DELETE).
+
+**Fix:** Lista de patrones financieros (charge, payment, invoice,
+refund, transfer, payout, withdraw, billing, subscription) detectados
+en path segments (exact match) y operationId (substring match).
+Cuando coincide, severity escala de HIGH a CRITICAL.
+
+**Por qué no cambia el orden NEXUM-002 vs NEXUM-004 en general:**
+NEXUM-002 sigue CRITICAL por defecto por condición de disparo
+incondicional (daño en la primera llamada, sin remedio en el spec).
+NEXUM-004 requiere condición adicional (retry tras fallo de red),
+por eso su base es HIGH — pero escala a CRITICAL cuando el dominio
+elimina el "remedio trivial" que justificaba la severidad menor.
+
+**Ortogonalidad preservada:** confidence (certeza de detección) y
+severity (gravedad por dominio) son ejes independientes. Esta
+escalada no toca confidence.

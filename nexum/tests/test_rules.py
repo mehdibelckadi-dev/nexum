@@ -247,8 +247,10 @@ class TestIdempotencyMissing:
     rule = IdempotencyMissing()
 
     def test_post_without_idempotency_header_flagged(self):
+        # Non-financial resource: confirms base HIGH severity. Financial-domain
+        # escalation to CRITICAL is covered by TestFinancialDomainEscalation.
         spec = _minimal_spec(**{
-            "/payments": {"post": {"operationId": "createPayment", "parameters": []}}
+            "/widgets": {"post": {"operationId": "createWidget", "parameters": []}}
         })
         findings = self.rule.check(spec)
         assert len(findings) == 1
@@ -511,6 +513,90 @@ class TestIdempotencyMissingMcpAnnotations:
         findings = self.rule.check(spec)
         assert len(findings) == 1
         assert "staging area" in findings[0].human_explanation
+
+
+# ---------------------------------------------------------------------------
+# NEXUM-004  TD-016 — Domain-aware severity escalation
+# ---------------------------------------------------------------------------
+
+class TestFinancialDomainEscalation:
+    """TD-016: NEXUM-004 escalates HIGH -> CRITICAL for financial domains.
+
+    confidence (detection certainty) and severity (domain consequence) are
+    orthogonal axes — escalation must never touch confidence.
+    """
+    rule = IdempotencyMissing()
+
+    def test_charges_endpoint_escalates_to_critical(self):
+        spec = _minimal_spec(**{
+            "/v1/charges": {"post": {"operationId": "createCharge", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].rule_id == "NEXUM-004"
+        assert findings[0].severity == "CRITICAL"
+
+    def test_payments_endpoint_escalates_to_critical(self):
+        # Path-template segment {id} is ignored; 'payments' is an exact match.
+        spec = _minimal_spec(**{
+            "/v1/payments/{id}/capture": {
+                "post": {"operationId": "capturePayment", "parameters": []}
+            }
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "CRITICAL"
+
+    def test_non_financial_endpoint_stays_high(self):
+        spec = _minimal_spec(**{
+            "/v1/comments": {"post": {"operationId": "createComment", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "HIGH"
+
+    def test_exchanges_does_not_false_positive_as_charges(self):
+        # 'exchanges' != 'charges' (exact path match), and 'createExchange' does
+        # not contain 'charge' as a substring — must stay HIGH.
+        spec = _minimal_spec(**{
+            "/v1/exchanges": {"post": {"operationId": "createExchange", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "HIGH"
+
+    def test_operation_id_camelcase_detection(self):
+        # Path '/v1/transactions' has no financial segment; detection comes from
+        # the operationId substring match ('createCharge' contains 'charge').
+        spec = _minimal_spec(**{
+            "/v1/transactions": {
+                "post": {"operationId": "createCharge", "parameters": []}
+            }
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "CRITICAL"
+
+    def test_financial_escalation_adds_explanation_note(self):
+        spec = _minimal_spec(**{
+            "/v1/refunds": {"post": {"operationId": "createRefund", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "CRITICAL"
+        assert "chargebacks" in findings[0].human_explanation
+        assert "regulatory exposure" in findings[0].human_explanation
+
+    def test_confidence_unaffected_by_severity_escalation(self):
+        # severity escalates to CRITICAL, but confidence is an orthogonal axis
+        # and must remain at its default HIGH.
+        spec = _minimal_spec(**{
+            "/v1/charges": {"post": {"operationId": "createCharge", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].severity == "CRITICAL"
+        assert findings[0].confidence == "HIGH"
 
 
 # ---------------------------------------------------------------------------
