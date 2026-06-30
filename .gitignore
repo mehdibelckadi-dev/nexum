@@ -29,3 +29,8 @@ config.anthropic.spec.ts
 client-sdk-web/
 batch_summary.txt
 config.anthropic.spec.ts
+
+# Internal documentation — repo is public; these stay local only.
+# CLAUDE.md stays at repo root (Claude Code loads it from there) but is untracked.
+CLAUDE.md
+private-docs/
