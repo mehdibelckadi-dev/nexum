@@ -9,6 +9,7 @@ from pathlib import Path
 
 import typer
 
+from .agent.triage import TriageUnavailable, generate_report
 from .core import engine
 from .core.ingestor import NexumIngestError, ingest
 from .core.rules.base import Finding
@@ -169,6 +170,11 @@ def report(
     run_validate: bool = typer.Option(
         False, "--validate", help="Run validator after PDF generation; exit code reflects verdict",
     ),
+    triage: bool = typer.Option(
+        False, "--triage",
+        help="Add best-effort LLM triage prioritisation (calls the Anthropic API). "
+             "Off by default — the deterministic report is unaffected either way.",
+    ),
 ) -> None:
     """Generate a PDF Security Report for a spec file."""
     if not file.exists():
@@ -196,9 +202,17 @@ def report(
     result   = calculate(findings)
     manifest = generate(findings, result, str(file), spec)
 
+    # LLM triage is strictly additive and fail-closed: it never mutates the
+    # deterministic manifest. With --triage off, generate_report makes no API
+    # call and the report path is byte-identical to the deterministic-only flow.
+    report_obj = generate_report(manifest, include_triage=triage)
+    if isinstance(report_obj.triage_section, TriageUnavailable):
+        typer.echo(report_obj.triage_section.reason, err=True)
+
     elapsed = generate_pdf(
         findings, result, manifest, str(file), output,
         excluded_paths=sorted(excluded),
+        triage_section=report_obj.triage_section,
     )
 
     tier_text  = _TIER_LABEL[result.tier]

@@ -7,6 +7,7 @@ from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -354,6 +355,54 @@ def _page1(
 
 
 # ---------------------------------------------------------------------------
+# Triage section (advisory, LLM-assisted)
+# ---------------------------------------------------------------------------
+
+def _triage_elements(triage_section: Any, styles: dict[str, ParagraphStyle]) -> list:
+    """Render the optional LLM triage section.
+
+    triage_section is duck-typed so this module never imports the agent layer
+    (and never pulls the LLM SDK on the default report path):
+      - None                     -> nothing (default path, no --triage)
+      - list of TriageItem       -> the prioritised items
+      - a TriageUnavailable obj  -> ONLY its generic .reason (never .category)
+    The section is clearly labelled advisory and never influences the score.
+    """
+    if triage_section is None:
+        return []
+
+    els: list = [
+        HRFlowable(width="100%", thickness=0.5, color=colors.HexColor("#CCCCCC")),
+        Spacer(1, 0.18 * cm),
+        Paragraph("Triage Prioritization — LLM-assisted (advisory)", styles["section_hdr"]),
+        Paragraph(
+            "Advisory and non-deterministic. Produced by the LLM triage layer; it "
+            "never affects the Nexum risk score, tier, or the severities above.",
+            styles["score_context"],
+        ),
+        Spacer(1, 0.15 * cm),
+    ]
+
+    if isinstance(triage_section, list):
+        if not triage_section:
+            els.append(Paragraph("No triage items were returned.", styles["body"]))
+        for item in triage_section:
+            els.append(Paragraph(escape(item.finding_id), styles["finding_id"]))
+            els.append(Paragraph(
+                f"<b>Priority:</b> {escape(item.priority_explanation)}", styles["finding_exp"]
+            ))
+            els.append(Paragraph(
+                f"<b>Remediation:</b> {escape(item.remediation_suggestion)}", styles["guardrail"]
+            ))
+            els.append(Spacer(1, 0.2 * cm))
+    else:
+        # TriageUnavailable — only the generic, user-facing reason. Never the
+        # internal failure category.
+        els.append(Paragraph(escape(triage_section.reason), styles["body"]))
+
+    return els
+
+
 # Page 2
 # ---------------------------------------------------------------------------
 
@@ -484,8 +533,13 @@ def generate_pdf(
     source_file: str,
     output_path: Path,
     excluded_paths: list[str] = (),
+    triage_section: Any = None,
 ) -> float:
-    """Render the 2-page PDF report. Returns elapsed wall-clock seconds."""
+    """Render the 2-page PDF report. Returns elapsed wall-clock seconds.
+
+    triage_section is optional and advisory: None (the default report path)
+    renders nothing extra, so the default output is unchanged.
+    """
     t0 = time.perf_counter()
 
     valid_until = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
@@ -525,6 +579,7 @@ def generate_pdf(
         _page1(findings, result, Path(source_file).name, styles)
         + [PageBreak()]
         + _page2(findings, manifest, styles, excluded_paths)
+        + _triage_elements(triage_section, styles)
     )
     doc.build(story)
     return time.perf_counter() - t0
