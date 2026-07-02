@@ -100,6 +100,8 @@ Nexum is built as two strictly separated layers, and the separation is the point
 
 Why bother with the wall between the layers? Because the value of a risk score is that it is trustworthy and reproducible. The instant an LLM sits anywhere in the scoring path, the score becomes non-deterministic and un-auditable — and "the AI said it's a 60" is not something you can defend to a security team. Nexum keeps the model strictly additive: helpful for prioritization, powerless over the verdict.
 
+The Trust Manifest format is specified separately at [nexum-trust-manifest](https://github.com/mehdibelckadi-dev/nexum-trust-manifest).
+
 ## Design decisions
 
 A few choices worth calling out, because they were deliberate:
