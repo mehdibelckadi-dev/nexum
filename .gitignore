@@ -34,3 +34,7 @@ config.anthropic.spec.ts
 # CLAUDE.md stays at repo root (Claude Code loads it from there) but is untracked.
 CLAUDE.md
 private-docs/
+
+# Python build artifacts
+build/
+dist/

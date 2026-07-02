@@ -1,19 +1,39 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "nexum"
+name = "nexum-scanner"
 version = "0.1.0"
+description = "Deterministic API security scanner for AI agent integrations"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
-dependencies = ["pyyaml", "pydantic>=2", "typer", "reportlab", "pytest",
-                "fastapi", "python-multipart", "uvicorn", "httpx", "anthropic"]
+dependencies = [
+    "pyyaml",
+    "pydantic>=2",
+    "typer",
+    "reportlab",
+    "httpx",
+    "anthropic",
+]
+
+[project.optional-dependencies]
+web = ["fastapi", "uvicorn", "python-multipart"]
+dev = ["pytest", "nexum-scanner[web]"]
+
+[project.urls]
+Homepage = "https://getnexum.dev"
+Repository = "https://github.com/mehdibelckadi-dev/nexum"
 
 [project.scripts]
 nexum = "nexum.cli:app"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["nexum*"]
+exclude = ["nexum.tests*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

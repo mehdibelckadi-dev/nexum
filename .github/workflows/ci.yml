@@ -1,4 +1,4 @@
-name: Nexum Self-Scan
+name: CI
 
 on:
   push:
