@@ -11,6 +11,7 @@ import typer
 
 from .agent.triage import TriageUnavailable, generate_report
 from .core import engine
+from .core.formatters.sarif import to_sarif
 from .core.ingestor import NexumIngestError, ingest
 from .core.rules.base import Finding
 from .core.scorer import ScoreResult, calculate
@@ -31,6 +32,7 @@ _TIER_COLOR = {0: typer.colors.GREEN, 1: typer.colors.YELLOW, 2: typer.colors.RE
 class ScanFormat(str, enum.Enum):
     json    = "json"
     summary = "summary"
+    sarif   = "sarif"
 
 
 _TABLE_WIDTH = 42
@@ -89,7 +91,7 @@ def _main() -> None:
 def scan(
     file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
     fmt: ScanFormat = typer.Option(
-        ScanFormat.json, "--format", help="Output format: json (default) or summary",
+        ScanFormat.json, "--format", help="Output format: json (default), summary or sarif",
     ),
 ) -> None:
     """Scan a spec file and print the Trust Manifest draft and Risk Score."""
@@ -123,6 +125,8 @@ def scan(
     typer.echo("",                                                err=True)
     if fmt == ScanFormat.summary:
         _print_summary(file, findings, result)
+    elif fmt == ScanFormat.sarif:
+        print(json.dumps(to_sarif(findings, str(file)), indent=2))
     else:
         print(json.dumps(manifest, indent=2))
 
