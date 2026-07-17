@@ -11,6 +11,7 @@ import typer
 
 from .agent.triage import TriageUnavailable, generate_report
 from .core import engine
+from .core.baseline import BaselineError, filter_baseline, generate_baseline, load_baseline
 from .core.formatters.sarif import to_sarif
 from .core.ingestor import NexumIngestError, ingest
 from .core.rules.base import Finding
@@ -39,7 +40,13 @@ _TABLE_WIDTH = 42
 _SEVER_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 
-def _print_summary(file: Path, findings: list[Finding], result: ScoreResult) -> None:
+def _print_summary(
+    file: Path,
+    findings: list[Finding],
+    result: ScoreResult,
+    suppressed_count: int = 0,
+    score_before: int | None = None,
+) -> None:
     double = "═" * _TABLE_WIDTH
     single = "─" * _TABLE_WIDTH
 
@@ -48,7 +55,10 @@ def _print_summary(file: Path, findings: list[Finding], result: ScoreResult) -> 
     print(double)
 
     tier_label = _TIER_LABEL[result.tier].removeprefix("Tier ")
-    print(f" Score     {result.score} / 100")
+    score_line = f" Score     {result.score} / 100"
+    if score_before is not None:
+        score_line += f"  (was {score_before}/100 before baseline)"
+    print(score_line)
     print(f" Tier      {tier_label}")
 
     sev_counts: dict[str, int] = {}
@@ -59,6 +69,8 @@ def _print_summary(file: Path, findings: list[Finding], result: ScoreResult) -> 
         if sev in sev_counts:
             parts.append(f"{sev_counts[sev]} {sev}")
     print(f" Findings  {' · '.join(parts)}")
+    if suppressed_count:
+        print(f"           + {suppressed_count} suppressed via baseline")
 
     print(single)
 
@@ -93,6 +105,10 @@ def scan(
     fmt: ScanFormat = typer.Option(
         ScanFormat.json, "--format", help="Output format: json (default), summary or sarif",
     ),
+    baseline_path: Path = typer.Option(
+        None, "--baseline",
+        help="Baseline file (.nexumbaseline.json) whose findings are suppressed before scoring",
+    ),
 ) -> None:
     """Scan a spec file and print the Trust Manifest draft and Risk Score."""
     if not file.exists():
@@ -106,6 +122,18 @@ def scan(
         raise typer.Exit(code=1)
 
     findings = engine.run(spec)
+
+    suppressed: list[Finding] = []
+    score_before: int | None = None
+    if baseline_path is not None:
+        try:
+            bl = load_baseline(baseline_path)
+        except BaselineError as exc:
+            typer.echo(f"Error: invalid baseline — {exc}", err=True)
+            raise typer.Exit(code=1)
+        score_before = calculate(findings).score
+        findings, suppressed = filter_baseline(findings, bl)
+
     result = calculate(findings)
     manifest = generate(findings, result, str(file), spec)
 
@@ -114,17 +142,20 @@ def scan(
 
     width = 48
     bar = "─" * width
-    score_line = f"  Nexum Risk Score : {result.score:>3} / 100"
+    score_suffix = f"  (was {score_before}/100 before baseline)" if score_before is not None else ""
+    score_line = f"  Nexum Risk Score : {result.score:>3} / 100{score_suffix}"
     tier_line  = f"  Risk Tier        : {tier_text}"
     src_line   = f"  Source           : {file.name}"
     typer.echo(bar,                                               err=True)
     typer.echo(typer.style(score_line, fg=tier_color, bold=True), err=True)
     typer.echo(typer.style(tier_line,  fg=tier_color, bold=True), err=True)
     typer.echo(src_line,                                          err=True)
+    if suppressed:
+        typer.echo(f"  Suppressed       : {len(suppressed)} via baseline", err=True)
     typer.echo(bar,                                               err=True)
     typer.echo("",                                                err=True)
     if fmt == ScanFormat.summary:
-        _print_summary(file, findings, result)
+        _print_summary(file, findings, result, len(suppressed), score_before)
     elif fmt == ScanFormat.sarif:
         print(json.dumps(to_sarif(findings, str(file)), indent=2))
     else:
@@ -179,6 +210,10 @@ def report(
         help="Add best-effort LLM triage prioritisation (calls the Anthropic API). "
              "Off by default — the deterministic report is unaffected either way.",
     ),
+    baseline_path: Path = typer.Option(
+        None, "--baseline",
+        help="Baseline file (.nexumbaseline.json) whose findings are suppressed before scoring",
+    ),
 ) -> None:
     """Generate a PDF Security Report for a spec file."""
     if not file.exists():
@@ -192,6 +227,16 @@ def report(
         raise typer.Exit(code=1)
 
     findings = engine.run(spec)
+
+    if baseline_path is not None:
+        try:
+            bl = load_baseline(baseline_path)
+        except BaselineError as exc:
+            typer.echo(f"Error: invalid baseline — {exc}", err=True)
+            raise typer.Exit(code=1)
+        findings, suppressed = filter_baseline(findings, bl)
+        if suppressed:
+            typer.echo(f"Suppressed {len(suppressed)} finding(s) via baseline", err=True)
 
     excluded: set[str] = set(exclude_path)
     if excluded:
@@ -265,6 +310,33 @@ def validate_manifest(
         raise typer.Exit(code=1)
     if result.verdict == "REVIEW_REQUIRED":
         raise typer.Exit(code=1 if strict else 2)
+
+
+@app.command()
+def baseline(
+    file: Path = typer.Argument(..., help="MCP or OpenAPI spec file (JSON / YAML)"),
+    output: Path = typer.Option(
+        Path(".nexumbaseline.json"), "--output", "-o", help="Baseline file to write",
+    ),
+) -> None:
+    """Scan a spec and write a baseline accepting every current finding for review."""
+    if not file.exists():
+        typer.echo(f"Error: file not found — '{file}'", err=True)
+        raise typer.Exit(code=1)
+
+    try:
+        spec = ingest(file)
+    except NexumIngestError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(code=1)
+
+    findings = engine.run(spec)
+    generate_baseline(findings, output)
+
+    typer.echo(
+        typer.style(f"Baseline written: {output}", fg=typer.colors.GREEN, bold=True),
+    )
+    typer.echo(f"  {len(findings)} finding(s) accepted — review and edit 'reason' fields before use.")
 
 
 if __name__ == "__main__":
