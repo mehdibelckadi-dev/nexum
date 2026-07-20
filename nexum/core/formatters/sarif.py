@@ -63,6 +63,10 @@ def _build_result(finding: Finding, source_file: str) -> dict:
                 "physicalLocation": {
                     "artifactLocation": {"uri": source_file},
                     "region": {
+                        # TD: region.startLine is fixed at 1 — no line number available from
+                        # deterministic spec analysis. To fix: parse the raw spec YAML/JSON to
+                        # find the byte offset of the path+method combination and map to line number.
+                        # Deferred — requires changes to ingestor.py to track source positions.
                         "startLine": 1,
                         "snippet": {"text": finding.evidence_snippet},
                     },
