@@ -86,7 +86,9 @@ Two things to know:
   scan fails** on `fail-on-tier`. A blocked PR still surfaces its findings in the
   Security tab — the block and the report are independent.
 
-<!-- TODO: add a GIF/screenshot of the Security tab showing Nexum findings from a real run -->
+Nexum's findings on the Security tab, from the self-scan of this repository:
+
+![Nexum findings in the GitHub Security tab](security-tab.png)
 
 ## Validate behaviour
 
