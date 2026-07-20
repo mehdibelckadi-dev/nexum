@@ -7,6 +7,9 @@ on:
 jobs:
   self-scan:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # required for upload-sarif
+      contents: read
     steps:
       - uses: actions/checkout@v5.0.0
 
@@ -16,6 +19,7 @@ jobs:
         with:
           spec-file: nexum/tests/fixtures/sample_openapi.yaml
           fail-on-tier: '3'
+          upload-sarif: 'true'
 
       - name: Print outputs
         shell: bash
