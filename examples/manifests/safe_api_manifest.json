@@ -1,0 +1,15 @@
+{
+  "manifest_version": "1.0-draft",
+  "scanned_at": "2026-07-21T09:00:00Z",
+  "source_file": "status_api_openapi.yaml",
+  "inferred_risk_tier": 0,
+  "nexum_risk_score": 0,
+  "model_compatibility_range": "REQUIRES_HUMAN_REVIEW",
+  "auto_detected_invariants": {
+    "immutable_fields": [],
+    "numeric_limits": {},
+    "required_headers": []
+  },
+  "findings_summary": [],
+  "manual_review_required": []
+}

@@ -22,6 +22,7 @@ dependencies = [
 [project.optional-dependencies]
 web = ["fastapi", "uvicorn", "python-multipart"]
 dev = ["pytest", "nexum-scanner[web]"]
+langgraph = ["langgraph"]
 
 [project.urls]
 Homepage = "https://getnexum.dev"

@@ -1,0 +1,43 @@
+{
+  "manifest_version": "1.0-draft",
+  "scanned_at": "2026-07-21T09:00:00Z",
+  "source_file": "stripe_openapi.yaml",
+  "inferred_risk_tier": 2,
+  "nexum_risk_score": 85,
+  "model_compatibility_range": "REQUIRES_HUMAN_REVIEW",
+  "auto_detected_invariants": {
+    "immutable_fields": [],
+    "numeric_limits": {},
+    "required_headers": []
+  },
+  "findings_summary": [
+    {
+      "rule_id": "NEXUM-004",
+      "rule_name": "IdempotencyMissing",
+      "severity": "CRITICAL",
+      "path": "/v1/charges",
+      "method": "POST",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "NEXUM-004",
+      "rule_name": "IdempotencyMissing",
+      "severity": "CRITICAL",
+      "path": "/v1/refunds",
+      "method": "POST",
+      "confidence": "HIGH"
+    },
+    {
+      "rule_id": "NEXUM-003",
+      "rule_name": "UnboundedScope",
+      "severity": "HIGH",
+      "path": "/v1/customers",
+      "method": "DELETE",
+      "confidence": "HIGH"
+    }
+  ],
+  "manual_review_required": [
+    "idempotency_key_enforcement",
+    "financial_domain_review"
+  ]
+}
