@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-The GitHub REST API exposes **404** endpoints an autonomous agent could misuse. Twilio's v2010 API: **62**. DigitalOcean's: **220** — including `DELETE /v2/droplets` with no resource identifier and `POST /v2/registries/subscription` with no idempotency guard. Nexum found every one of them with a deterministic scan, in under a second, without touching a live system.
+A widely-used developer platform's REST API exposes **404** endpoints an autonomous agent could misuse. A major communications API: **62**. A major cloud infrastructure provider's: **220** — including a `DELETE` collection endpoint with no resource identifier and a `POST` endpoint with no idempotency guard.
 
 That is the whole idea: read the spec, not the traffic.
 

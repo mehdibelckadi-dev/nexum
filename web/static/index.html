@@ -157,23 +157,23 @@
 
       <div class="blast-card">
         <div class="blast-category">Messaging</div>
-        <div class="blast-api mono">slack.com</div>
+        <div class="blast-api mono">messaging-platform.example</div>
         <div class="blast-count">58</div>
         <div class="blast-label">CRITICAL findings</div>
-        <p class="blast-desc">Admin endpoints expose token credentials in query strings — visible in every agent HTTP log.</p>
+        <p class="blast-desc">Admin endpoints carry a spec-level risk pattern: token credentials in query strings, visible in every agent HTTP log.</p>
       </div>
 
       <div class="blast-card">
         <div class="blast-category">Payments</div>
-        <div class="blast-api mono">stripe.com</div>
+        <div class="blast-api mono">payments-api.example</div>
         <div class="blast-count">5</div>
         <div class="blast-label">CRITICAL findings</div>
-        <p class="blast-desc">Token-bearing payment endpoints appear in agent request logs, leaking credentials on every call.</p>
+        <p class="blast-desc">Token-bearing payment endpoints appear in agent request logs — a spec-level risk pattern on every call.</p>
       </div>
 
       <div class="blast-card">
         <div class="blast-category">Infrastructure</div>
-        <div class="blast-api mono">digitalocean.com</div>
+        <div class="blast-api mono">cloud-infra.example</div>
         <div class="blast-count">3</div>
         <div class="blast-label">CRITICAL findings</div>
         <p class="blast-desc">Bulk-delete operations without resource scope — a single agent call can destroy an entire fleet.</p>
@@ -181,7 +181,7 @@
 
       <div class="blast-card">
         <div class="blast-category">Developer Tools</div>
-        <div class="blast-api mono">github.com</div>
+        <div class="blast-api mono">dev-platform.example</div>
         <div class="blast-count">7</div>
         <div class="blast-label">CRITICAL findings</div>
         <p class="blast-desc">API token parameters in query strings across 7 endpoints, exposed in every agent request log.</p>
@@ -381,35 +381,35 @@
 
   var APIS = [
     {
-      host: 'stripe.com',
+      host: 'payments-api.example',
       findings: [
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/financial_connections/accounts', desc: 'credentials in query string' },
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/payment_intents/{intent}',        desc: 'credentials in query string' },
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/sources/{source}',                desc: 'credentials in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/linked_accounts', desc: 'credentials in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/transactions/{transaction_id}',        desc: 'credentials in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/v1/payment_methods/{method_id}',                desc: 'credentials in query string' },
       ],
     },
     {
-      host: 'slack.com',
+      host: 'messaging-platform.example',
       findings: [
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.approved.list',   desc: 'token in query string' },
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.apps.restricted.list', desc: 'token in query string' },
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin.conversations.list',   desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin/apps/approved',   desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin/apps/restricted', desc: 'token in query string' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/admin/conversations',   desc: 'token in query string' },
       ],
       more: '... and 55 more CRITICAL findings',
     },
     {
-      host: 'digitalocean.com',
+      host: 'cloud-infra.example',
       findings: [
-        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/droplets', desc: 'DELETE without resource scope' },
-        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v2/volumes',  desc: 'DELETE without resource scope' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v1/instances', desc: 'DELETE without resource scope' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/v1/volumes',  desc: 'DELETE without resource scope' },
       ],
     },
     {
-      host: 'github.com',
+      host: 'dev-platform.example',
       findings: [
-        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/applications/{client_id}/tokens', desc: 'auth in query string' },
-        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/notifications',                   desc: 'DELETE without scope' },
-        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/user/keys',                       desc: 'DELETE without scope' },
+        { rule: 'NEXUM-001', sev: 'CRITICAL', path: '/apps/{app_id}/access_tokens', desc: 'auth in query string' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/alerts',                   desc: 'DELETE without scope' },
+        { rule: 'NEXUM-002', sev: 'CRITICAL', path: '/account/keys',                       desc: 'DELETE without scope' },
       ],
     },
   ];
