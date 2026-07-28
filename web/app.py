@@ -86,6 +86,11 @@ async def blog_article():
     return FileResponse(_STATIC / "blog" / "2517-apis-scanned.html")
 
 
+@app.get("/blog/ai-act-aplazamiento-2026")
+async def blog_article_ai_act():
+    return FileResponse(_STATIC / "blog" / "ai-act-aplazamiento-2026.html")
+
+
 @app.get("/registry-data")
 async def registry_data():
     path = _STATIC / "registry_data.json"
