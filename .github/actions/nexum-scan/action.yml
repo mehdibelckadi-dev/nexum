@@ -74,6 +74,10 @@ runs:
           VALIDATE_EXIT=0
           nexum validate "$MANIFEST_TMP" || VALIDATE_EXIT=$?
           rm -f "$MANIFEST_TMP"
+          if [ "$VALIDATE_EXIT" -eq 3 ]; then
+            echo "Nexum tool error — input could not be parsed"
+            exit 1
+          fi
           if [ "$VALIDATE_EXIT" -eq 1 ]; then
             echo "Nexum validator: DO_NOT_DISTRIBUTE — blocking"
             exit 1

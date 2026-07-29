@@ -26,6 +26,12 @@ app = typer.Typer(
     add_completion=False,
 )
 
+# Exit code for "input could not be parsed" (malformed spec or manifest file).
+# Kept distinct from the validator's own verdict exit codes (1 = DO_NOT_DISTRIBUTE,
+# 2 = REVIEW_REQUIRED) so a parse failure can never be mistaken for a risk verdict —
+# TD-014.
+EXIT_INGEST_ERROR = 3
+
 _TIER_LABEL = {0: "Tier 0 — LOW RISK", 1: "Tier 1 — MODERATE RISK", 2: "Tier 2 — HIGH RISK"}
 _TIER_COLOR = {0: typer.colors.GREEN, 1: typer.colors.YELLOW, 2: typer.colors.RED}
 
@@ -119,7 +125,7 @@ def scan(
         spec = ingest(file)
     except NexumIngestError as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_INGEST_ERROR)
 
     findings = engine.run(spec)
 
@@ -224,7 +230,7 @@ def report(
         spec = ingest(file)
     except NexumIngestError as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_INGEST_ERROR)
 
     findings = engine.run(spec)
 
@@ -301,7 +307,7 @@ def validate_manifest(
         manifest = json.loads(findings_json.read_text())
     except json.JSONDecodeError as exc:
         typer.echo(f"Error: invalid JSON — {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_INGEST_ERROR)
 
     result = validate(manifest)
     print(json.dumps(dataclasses.asdict(result), indent=2))
@@ -328,7 +334,7 @@ def baseline(
         spec = ingest(file)
     except NexumIngestError as exc:
         typer.echo(f"Error: {exc}", err=True)
-        raise typer.Exit(code=1)
+        raise typer.Exit(code=EXIT_INGEST_ERROR)
 
     findings = engine.run(spec)
     generate_baseline(findings, output)

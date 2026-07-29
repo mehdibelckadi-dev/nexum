@@ -85,6 +85,7 @@ while IFS='|' read -r name url; do
     0) echo "✅ $name — DISTRIBUTABLE" | tee -a "$LOG_FILE"; ((PASS++)) || true ;;
     1) echo "🚫 $name — DO_NOT_DISTRIBUTE" | tee -a "$LOG_FILE"; ((FAIL++)) || true ;;
     2) echo "⚠️  $name — REVIEW_REQUIRED" | tee -a "$LOG_FILE"; ((REVIEW++)) || true ;;
+    3) echo "❌ $name — INGEST ERROR (spec could not be parsed)" | tee -a "$LOG_FILE"; ((ERROR++)) || true ;;
     *) echo "❌ $name — ERROR ($EXIT_CODE)" | tee -a "$LOG_FILE"; ((ERROR++)) || true ;;
   esac
 

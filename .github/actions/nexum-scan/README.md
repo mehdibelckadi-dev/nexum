@@ -95,3 +95,7 @@ Nexum's findings on the Security tab, from the self-scan of this repository:
 When `validate: true`, the action runs `nexum validate` against the manifest
 and blocks **only** on `DO_NOT_DISTRIBUTE` (exit code 1). A `REVIEW_REQUIRED`
 result (exit code 2) is logged but does not fail the step.
+
+If the manifest itself could not be parsed (exit code 3 — a tool/pipeline
+error, not a risk verdict), the step fails with "Nexum tool error — input
+could not be parsed" rather than being reported as `DO_NOT_DISTRIBUTE`.
