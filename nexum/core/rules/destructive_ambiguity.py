@@ -44,8 +44,44 @@ def _plural_candidates(segment: str) -> frozenset[str]:
     return frozenset(candidates)
 
 
+_CAMEL_OR_PASCAL_COMPOUND_RE = re.compile(r"[a-z][A-Z]")
+
+
+def _looks_already_plural(segment: str) -> bool:
+    """Heuristic: does this path segment already read as a plural collection name?
+
+    Restricted to camelCase/PascalCase compounds (e.g. 'channelSubscriptions',
+    'PackageTypetoBundles') — an internal lowercase-to-uppercase transition
+    signals two or more concatenated words, which is how real-world collection
+    endpoint names show up in specs. Appending another 's' to these (see
+    _plural_candidates) never matches anything in the spec, which used to mask
+    them as MEDIUM confidence.
+
+    A single lowercase (or all-caps) word ending in 's' is NOT treated as
+    already-plural here: many singleton resource names happen to end in 's'
+    without being collections at all (status, bus, gas, virus, campus, atlas,
+    corpus, focus, bias, analysis...). Requiring a case transition excludes
+    these false positives while still catching the compound-noun pattern.
+    """
+    if not _CAMEL_OR_PASCAL_COMPOUND_RE.search(segment):
+        return False
+    lower = segment.lower()
+    if lower.endswith("ies") and len(lower) > 3:
+        return True
+    return lower.endswith("s") and not lower.endswith("ss")
+
+
 def _infer_confidence(path: str, all_paths: set[str]) -> tuple[str, str]:
     terminal = path.rstrip("/").rsplit("/", 1)[-1]
+
+    if _looks_already_plural(terminal):
+        return (
+            "HIGH",
+            f"Path segment '{terminal}' reads as a plural compound noun (camelCase/"
+            "PascalCase) — inferred from name shape only, no sibling collection "
+            "endpoint was confirmed elsewhere in the spec.",
+        )
+
     plurals = _plural_candidates(terminal)
     for spec_path in all_paths:
         seg = spec_path.rstrip("/").rsplit("/", 1)[-1]

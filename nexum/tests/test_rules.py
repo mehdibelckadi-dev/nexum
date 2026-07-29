@@ -850,6 +850,85 @@ class TestConfidenceAssignment:
         assert len(findings) == 1
         assert findings[0].confidence == "HIGH"
 
+    def test_nexum002_already_plural_camelcase_terminal_gets_high_confidence(self):
+        """DELETE /push/channelSubscriptions (Ably) — TD-013 regression.
+
+        The path's own terminal segment is already a plural compound noun
+        (camelCase). The old heuristic pluralized it again ('channelSubscriptionss')
+        looking for a sibling collection path, never found one, and fell back to
+        MEDIUM even though the endpoint operates on the collection itself.
+        """
+        spec = _minimal_spec(**{
+            "/push/channelSubscriptions": {
+                "delete": {"operationId": "deleteAllChannelSubscriptions", "parameters": []}
+            }
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].confidence == "HIGH"
+
+    def test_nexum002_already_plural_pascalcase_terminal_gets_high_confidence(self):
+        """DELETE /api/v2/PackageTypetoBundles (AGCO) — TD-013 regression.
+
+        Same root cause as the Ably case with a PascalCase compound noun.
+        """
+        spec = _minimal_spec(**{
+            "/api/v2/PackageTypetoBundles": {
+                "delete": {"operationId": "deletePackageTypetoBundles", "parameters": []}
+            }
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].confidence == "HIGH"
+
+    @pytest.mark.parametrize("word", [
+        "status", "bus", "gas", "virus", "campus", "atlas",
+        "corpus", "focus", "bias", "analysis",
+    ])
+    def test_nexum002_singular_word_ending_in_s_not_treated_as_plural(self, word):
+        """TD-013 false-positive guard: a single lowercase word ending in 's'
+
+        is not a compound camelCase/PascalCase collection name — it must not
+        be inferred as HIGH confidence by _looks_already_plural(). Without the
+        camelCase/PascalCase restriction, every one of these singleton nouns
+        would incorrectly get HIGH confidence just because it ends in 's'.
+        """
+        spec = _minimal_spec(**{
+            f"/{word}": {"delete": {"operationId": f"delete_{word}", "parameters": []}}
+        })
+        findings = self.rule.check(spec)
+        assert len(findings) == 1
+        assert findings[0].confidence == "MEDIUM"
+
+    def test_nexum002_sibling_plural_path_reason_differs_from_name_heuristic_reason(self):
+        """The two HIGH-confidence routes must use distinguishable wording.
+
+        Route 1: a sibling plural path found elsewhere in the spec (direct
+        evidence). Route 2: _looks_already_plural() name-shape inference (no
+        sibling path confirmed). Reusing the same text for both would make it
+        impossible to tell, from the finding alone, whether the HIGH verdict
+        rests on confirmed spec evidence or a naming heuristic.
+        """
+        sibling_spec = _minimal_spec(**{
+            "/v2/registry": {"delete": {"operationId": "deleteRegistry", "parameters": []}},
+            "/v2/registries": {"get": {"operationId": "listRegistries", "parameters": []}},
+        })
+        sibling_findings = self.rule.check(sibling_spec)
+        assert sibling_findings[0].confidence == "HIGH"
+        sibling_reason = sibling_findings[0].confidence_reason.lower()
+
+        heuristic_spec = _minimal_spec(**{
+            "/push/channelSubscriptions": {
+                "delete": {"operationId": "deleteAllChannelSubscriptions", "parameters": []}
+            }
+        })
+        heuristic_findings = self.rule.check(heuristic_spec)
+        assert heuristic_findings[0].confidence == "HIGH"
+        heuristic_reason = heuristic_findings[0].confidence_reason.lower()
+
+        assert sibling_reason != heuristic_reason
+        assert "inferred" in heuristic_reason or "heuristic" in heuristic_reason or "name" in heuristic_reason
+
     def test_other_rules_always_high_confidence(self):
         """NEXUM-001, 003, 004, 005 must always produce confidence='HIGH'."""
         spec = _minimal_spec(**{
