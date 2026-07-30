@@ -71,6 +71,13 @@ async def index():
     return FileResponse(_STATIC / "index.html")
 
 
+@app.get("/favicon.ico")
+async def favicon():
+    # Browsers (and Google's favicon service for history/bookmarks) probe this
+    # well-known root path directly, regardless of <link rel="icon"> in the HTML.
+    return FileResponse(_STATIC / "img" / "favicon.ico", media_type="image/x-icon")
+
+
 @app.get("/registry")
 async def registry():
     return FileResponse(_STATIC / "registry.html")

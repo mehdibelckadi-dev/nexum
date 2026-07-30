@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="web/static/img/logo-icon.png" alt="Nexum" width="96">
+</p>
+
 # Nexum
 
 ![CI](https://github.com/mehdibelckadi-dev/nexum/actions/workflows/ci.yml/badge.svg)

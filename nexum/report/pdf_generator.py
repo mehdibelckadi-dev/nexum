@@ -17,6 +17,7 @@ from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
     HRFlowable,
+    Image,
     PageBreak,
     PageTemplate,
     Paragraph,
@@ -27,6 +28,8 @@ from reportlab.platypus import (
 
 from ..core.rules.base import Finding
 from ..core.scorer import ScoreResult
+
+_LOGO_PATH = Path(__file__).parent / "assets" / "logo-icon.png"
 
 # ---------------------------------------------------------------------------
 # Severity palette — hex strings for markup, Color objects for TableStyle
@@ -228,7 +231,21 @@ def _page1(
     els: list = []
 
     scan_ts = datetime.now().strftime("%Y-%m-%d %H:%M UTC")
-    els.append(Paragraph("NEXUM", styles["logo"]))
+
+    logo_size = 1.3 * cm
+    logo_img = Image(str(_LOGO_PATH), width=logo_size, height=logo_size)
+    header_tbl = Table(
+        [[logo_img, Paragraph("NEXUM", styles["logo"])]],
+        colWidths=[logo_size + 0.25 * cm, _INNER_W - logo_size - 0.25 * cm],
+    )
+    header_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    els.append(header_tbl)
     els.append(Paragraph("Security Scan Report", styles["report_title"]))
     els.append(Paragraph(
         f"Generated: {scan_ts} &nbsp;&nbsp;·&nbsp;&nbsp; Source: {source_name}",
