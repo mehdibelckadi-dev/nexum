@@ -106,6 +106,36 @@ Why bother with the wall between the layers? Because the value of a risk score i
 
 The Trust Manifest format is specified separately at [nexum-trust-manifest](https://github.com/mehdibelckadi-dev/nexum-trust-manifest).
 
+## DevSecOps integration
+
+**SARIF output — GitHub Code Scanning**
+nexum scan spec.yaml --format sarif > findings.sarif
+
+Findings appear as alerts in the GitHub Security tab. 
+Use the GitHub Action for automatic scanning on every push:
+
+- uses: mehdibelckadi-dev/nexum/.github/actions/nexum-scan@main
+  with:
+    spec-file: openapi.yaml
+    fail-on-tier: '2'
+    upload-sarif: 'true'
+
+**Baseline suppression**
+
+nexum baseline spec.yaml -o .nexumbaseline.json
+nexum scan spec.yaml --baseline .nexumbaseline.json
+
+Known findings are suppressed from the score. The baseline file records who accepted each finding and why.
+
+**LangGraph guardrail node**
+
+pip install nexum-scanner[langgraph]
+
+Use nexum as a decision node in your agent pipeline. 
+Tier 0 and Tier 1 → allow. Tier 2 → interrupt() for human approval before the agent proceeds.
+
+from nexum.integrations.langgraph_guardrail import nexum_guardrail_node
+
 ## Design decisions
 
 A few choices worth calling out, because they were deliberate:
@@ -125,7 +155,7 @@ Nexum performs **static analysis of a specification** — it does not test a run
 git clone https://github.com/mehdibelckadi-dev/nexum.git
 cd nexum
 pip install -e .
-pytest        # 193 tests
+pytest        # 232 tests
 ```
 
 CI runs on every push to `main`: Nexum scans a sample spec with itself and fails the build if the risk tier exceeds a configured threshold — the tool is its own smoke test. Contributions are welcome. Two rules for a PR: every scanner rule ships with tests, and the deterministic core stays LLM-free (Layer 2 is the only place a model may live). Run `pytest` green before opening one.
