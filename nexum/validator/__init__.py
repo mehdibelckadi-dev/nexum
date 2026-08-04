@@ -1,4 +1,4 @@
-"""Nexum Validator — automated quality checks for Trust Manifest drafts."""
+"""Nexum Validator — automated quality checks for Nexum Cert drafts."""
 
 from .reports import ValidationResult, validate
 

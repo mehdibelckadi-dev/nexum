@@ -116,7 +116,7 @@ def scan(
         help="Baseline file (.nexumbaseline.json) whose findings are suppressed before scoring",
     ),
 ) -> None:
-    """Scan a spec file and print the Trust Manifest draft and Risk Score."""
+    """Scan a spec file and print the Nexum Cert draft and Risk Score."""
     if not file.exists():
         typer.echo(f"Error: file not found — '{file}'", err=True)
         raise typer.Exit(code=1)
@@ -292,13 +292,13 @@ def report(
 @app.command()
 def validate_manifest(
     findings_json: Path = typer.Argument(
-        ..., help="JSON file produced by `nexum scan` (Trust Manifest draft)"
+        ..., help="JSON file produced by `nexum scan` (Nexum Cert draft)"
     ),
     strict: bool = typer.Option(
         False, "--strict", help="Treat REVIEW_REQUIRED as exit code 1 (useful in CI)"
     ),
 ) -> None:
-    """Validate a Trust Manifest draft and emit a ValidationResult as JSON."""
+    """Validate a Nexum Cert draft and emit a ValidationResult as JSON."""
     if not findings_json.exists():
         typer.echo(f"Error: file not found — '{findings_json}'", err=True)
         raise typer.Exit(code=1)

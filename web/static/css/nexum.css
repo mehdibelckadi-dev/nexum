@@ -674,7 +674,7 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   justify-content: center;
 }
 
-/* ── Trust Manifest ──────────────────────────────────────── */
+/* ── Nexum Cert ──────────────────────────────────────────── */
 .manifest-section { background: var(--bg-secondary); }
 
 .manifest-layout {
@@ -1174,7 +1174,7 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   /* How it works */
   .steps-grid { grid-template-columns: 1fr; }
 
-  /* Trust Manifest */
+  /* Nexum Cert */
   .manifest-layout { grid-template-columns: 1fr; gap: 32px; }
 
   /* Terminal */

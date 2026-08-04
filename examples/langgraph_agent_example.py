@@ -1,10 +1,10 @@
 """Example: a LangGraph agent gated by the Nexum guardrail node.
 
-This shows how Nexum's deterministic Trust Manifest (Layer 1) plugs into a real
+This shows how Nexum's deterministic Nexum Cert (Layer 1) plugs into a real
 agent framework as a decision-time guardrail. The graph has three nodes:
 
     prepare_call  → the "agent" decides which API/tool to call
-    nexum_guardrail → reads the Trust Manifest and decides allow/approve/block
+    nexum_guardrail → reads the Nexum Cert and decides allow/approve/block
     execute_call  → runs the tool call ONLY if the guardrail approved it
 
 No external API is ever called and no LLM sits inside the guardrail — the LLM of

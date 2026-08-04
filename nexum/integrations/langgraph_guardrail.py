@@ -1,7 +1,7 @@
-"""LangGraph guardrail node backed by a pre-generated Nexum Trust Manifest.
+"""LangGraph guardrail node backed by a pre-generated Nexum Cert.
 
 Before an agent executes a tool call against an external API, this node reads the
-Trust Manifest that Nexum's deterministic core (Layer 1) already produced for that
+Nexum Cert that Nexum's deterministic core (Layer 1) already produced for that
 API and decides:
 
 - ``allow``                  — the agent proceeds without intervention
@@ -40,7 +40,7 @@ class GuardrailDecision:
 
 
 def load_manifest(manifest_path: str | Path) -> dict | None:
-    """Load a pre-generated Nexum Trust Manifest from disk.
+    """Load a pre-generated Nexum Cert from disk.
 
     Returns None if the file doesn't exist — treated as block (fail-closed).
     """
@@ -55,14 +55,14 @@ def load_manifest(manifest_path: str | Path) -> dict | None:
 
 
 def evaluate_manifest(manifest: dict | None) -> GuardrailDecision:
-    """Deterministic decision from a Trust Manifest.
+    """Deterministic decision from a Nexum Cert.
 
     No LLM involved. Same fail-closed principle as NEXUM-002.
     """
     if manifest is None:
         return GuardrailDecision(
             action="block",
-            reason="No Trust Manifest found for this API. "
+            reason="No Nexum Cert found for this API. "
                    "Fail-closed: agent cannot proceed without a risk profile.",
             tier=None,
             score=None,
@@ -100,7 +100,7 @@ def evaluate_manifest(manifest: dict | None) -> GuardrailDecision:
 
 
 def nexum_guardrail_node(state: dict[str, Any]) -> dict[str, Any]:
-    """LangGraph node that evaluates the Nexum Trust Manifest for the target API
+    """LangGraph node that evaluates the Nexum Cert for the target API
     before allowing the agent to make a tool call.
 
     Expected state keys:

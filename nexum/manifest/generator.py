@@ -1,4 +1,4 @@
-"""Trust Manifest draft generator."""
+"""Nexum Cert draft generator."""
 
 from __future__ import annotations
 
@@ -71,7 +71,7 @@ def generate(
     source_file: str,
     spec: dict[str, Any],
 ) -> dict[str, Any]:
-    """Build a Trust Manifest draft dict.
+    """Build a Nexum Cert draft dict.
 
     Fields that cannot be reliably inferred from the spec are set to
     REQUIRES_HUMAN_REVIEW and listed in manual_review_required.

@@ -30,7 +30,7 @@ def validate(
     manifest: dict[str, Any],
     findings: list[dict[str, Any]] | None = None,
 ) -> ValidationResult:
-    """Validate a Trust Manifest dict produced by nexum scan.
+    """Validate a Nexum Cert dict produced by nexum scan.
 
     If findings is None the findings_summary list inside the manifest is used.
     Note: reconstructed findings lack evidence_snippet, which may trigger

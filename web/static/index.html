@@ -32,7 +32,7 @@
 <section class="hero">
   <div class="container">
     <div class="hero-eyebrow">Agentic API Security</div>
-    <h1>Every API your agent touches<br>needs a <em>Trust Manifest</em></h1>
+    <h1>Every API your agent touches<br>needs a <em>Nexum Cert</em></h1>
     <p class="hero-sub">
       Nexum scans MCP servers and OpenAPIs for agentic risk patterns.
       Deterministic. No LLM. In seconds.
@@ -72,7 +72,7 @@
       <h2 class="section-title">Scan your API spec</h2>
       <p class="section-sub" style="margin: 0 auto 48px;">
         Upload a JSON or YAML file — MCP server definition or OpenAPI spec.
-        Get a Risk Score and downloadable Trust Manifest PDF in seconds.
+        Get a Risk Score and downloadable Nexum Cert PDF in seconds.
       </p>
     </div>
 
@@ -120,7 +120,7 @@
 
         <!-- Badge section -->
         <div class="badge-section" id="badgeSection">
-          <div class="badge-section-title">Your Trust Manifest badge</div>
+          <div class="badge-section-title">Your Nexum Cert badge</div>
           <div class="badge-markdown-row">
             <div class="badge-markdown-code mono" id="badgeMarkdown"></div>
             <button class="btn-copy" id="btnCopy" onclick="copyBadge()">Copy</button>
@@ -226,9 +226,9 @@
       <div class="step-card">
         <div class="step-number">Step 03</div>
         <div class="step-icon">✓</div>
-        <div class="step-title">Get your Trust Manifest</div>
+        <div class="step-title">Get your Nexum Cert</div>
         <p class="step-desc">
-          Receive a Risk Score, a Risk Tier (0–2), and a portable Trust Manifest
+          Receive a Risk Score, a Risk Tier (0–2), and a portable Nexum Cert
           PDF. Add the badge to your README. Ship with confidence.
         </p>
       </div>
@@ -310,15 +310,15 @@
   </div>
 </section>
 
-<!-- ── Trust Manifest ────────────────────────────────────── -->
+<!-- ── Nexum Cert ─────────────────────────────────────────── -->
 <section class="manifest-section" id="manifest">
   <div class="container">
     <div class="manifest-layout">
       <div class="manifest-prose">
-        <div class="section-label">Trust Manifest</div>
+        <div class="section-label">Nexum Cert</div>
         <h2>The portable contract between agent and API</h2>
         <p>
-          A Trust Manifest is a machine-readable JSON artifact that summarises
+          A Nexum Cert is a machine-readable JSON artifact that summarises
           every risk finding, the inferred Risk Tier, and any fields that require
           human review before an agent is authorized to use the API.
         </p>
@@ -335,9 +335,9 @@
 
       <div class="code-block">
         <div class="code-block-header">
-          <span class="code-block-lang">trust-manifest.json · Tier 2 example</span>
+          <span class="code-block-lang">nexum-cert.json · Tier 2 example</span>
         </div>
-        <pre aria-label="Trust Manifest example"><span class="key">"manifest_version"</span>: <span class="str">"1.0-draft"</span>,
+        <pre aria-label="Nexum Cert example"><span class="key">"manifest_version"</span>: <span class="str">"1.0-draft"</span>,
 <span class="key">"inferred_risk_tier"</span>: <span class="num">2</span>,
 <span class="key">"nexum_risk_score"</span>: <span class="num">85</span>,
 <span class="key">"model_compatibility_range"</span>:
@@ -385,7 +385,7 @@
         <div class="rule-name">Nexum Audit</div>
         <div class="pricing-price mono">€1,200–2,400 <span class="pricing-period">· 5-7 business days</span></div>
         <p class="rule-desc">
-          Full manual review, business-language report, and a verified Trust Manifest for your API or agent integration.
+          Full manual review, business-language report, and a verified Nexum Cert for your API or agent integration.
         </p>
         <a class="btn btn-primary" href="mailto:hello@getnexum.dev?subject=Nexum%20Audit%20%E2%80%94%20inquiry&amp;body=Company%20name%3A%0AAPI%2FMCP%20already%20in%20production%3A%20yes%2Fno%0AWhat%20would%20you%20like%20reviewed%3A%0A">Request Audit</a>
       </div>
@@ -394,7 +394,7 @@
         <div class="rule-name">Nexum Watch</div>
         <div class="pricing-price mono">€200–350 <span class="pricing-period">/month · CI/CD monitoring + quarterly re-cert</span></div>
         <p class="rule-desc">
-          Continuous scanning on every push, with quarterly manual re-certification of your Trust Manifest.
+          Continuous scanning on every push, with quarterly manual re-certification of your Nexum Cert.
         </p>
         <a class="btn btn-primary" href="mailto:hello@getnexum.dev?subject=Nexum%20Watch%20%E2%80%94%20inquiry&amp;body=Company%20name%3A%0ACI%2FCD%20pipeline%20in%20use%3A%0AHow%20often%20do%20you%20deploy%3A%0A">Request Watch</a>
       </div>
@@ -413,7 +413,7 @@
       </div>
       <ul class="footer-links">
         <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
-        <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Trust Manifest Spec</a></li>
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Nexum Cert Spec</a></li>
         <li><a href="https://getnexum.dev">getnexum.dev</a></li>
       </ul>
       <div class="footer-copy mono">Nexum · Open specification · MIT License</div>

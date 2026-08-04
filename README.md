@@ -19,7 +19,7 @@ AI agents now call APIs on their own. They retry on network failures, chain tool
 
 So the spec is where the risk lives. A `DELETE` with no required resource identifier is harmless when a careful engineer writes the request by hand and harmful the moment an agent issues it against an ambiguous scope. A mutation with no `Idempotency-Key` is fine until a retry after a dropped connection creates the charge twice. A credential passed in a query string is a latent leak that only matters when something logs the URL.
 
-Nexum analyzes an MCP or OpenAPI definition statically and produces two artifacts: a **Trust Manifest** (JSON, machine-readable) and a **Risk Report** (PDF, human-readable). The risk engine is fully deterministic — five rules, reproducible scoring, and **no LLM in any risk decision**. Every finding carries the exact fragment of the spec that triggered it, so nothing is inferred and nothing is invented. When a value genuinely cannot be derived from the spec, the manifest says `REQUIRES_HUMAN_REVIEW` instead of guessing.
+Nexum analyzes an MCP or OpenAPI definition statically and produces two artifacts: a **Nexum Cert** (JSON, machine-readable) and a **Risk Report** (PDF, human-readable). The risk engine is fully deterministic — five rules, reproducible scoring, and **no LLM in any risk decision**. Every finding carries the exact fragment of the spec that triggered it, so nothing is inferred and nothing is invented. When a value genuinely cannot be derived from the spec, the manifest says `REQUIRES_HUMAN_REVIEW` instead of guessing.
 
 ## How it works
 
@@ -41,7 +41,7 @@ NEXUM-004 additionally escalates from HIGH to CRITICAL when the endpoint is in a
 
 ```bash
 pip install nexum-scanner
-nexum scan spec.yaml                         # Trust Manifest (JSON) + Risk Score
+nexum scan spec.yaml                         # Nexum Cert (JSON) + Risk Score
 nexum scan spec.yaml --format summary        # human-readable terminal table
 nexum report spec.yaml --output report.pdf   # 2-page PDF Risk Report
 ```
@@ -69,7 +69,7 @@ $ nexum scan nexum/tests/fixtures/sample_openapi.yaml --format summary
 ══════════════════════════════════════════
 ```
 
-The default output (no `--format`) is the Trust Manifest as JSON:
+The default output (no `--format`) is the Nexum Cert as JSON:
 
 ```json
 {
@@ -92,7 +92,7 @@ The default output (no `--format`) is the Trust Manifest as JSON:
 
 ## The registry
 
-Nexum has scanned **2,608 public APIs** and published the results as an open registry of Trust Manifests and Risk Reports. Browse it at **[getnexum.dev](https://getnexum.dev)**.
+Nexum has scanned **2,608 public APIs** and published the results as an open registry of Nexum Certs and Risk Reports. Browse it at **[getnexum.dev](https://getnexum.dev)**.
 
 ## Architecture
 
@@ -104,7 +104,7 @@ Nexum is built as two strictly separated layers, and the separation is the point
 
 Why bother with the wall between the layers? Because the value of a risk score is that it is trustworthy and reproducible. The instant an LLM sits anywhere in the scoring path, the score becomes non-deterministic and un-auditable — and "the AI said it's a 60" is not something you can defend to a security team. Nexum keeps the model strictly additive: helpful for prioritization, powerless over the verdict.
 
-The Trust Manifest format is specified separately at [nexum-trust-manifest](https://github.com/mehdibelckadi-dev/nexum-trust-manifest).
+The Nexum Cert format is specified separately at [nexum-trust-manifest](https://github.com/mehdibelckadi-dev/nexum-trust-manifest).
 
 ## DevSecOps integration
 
