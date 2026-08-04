@@ -652,6 +652,28 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
   line-height: 1.6;
 }
 
+/* ── Pricing ─────────────────────────────────────────────── */
+.pricing-price {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.pricing-period {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+#pricing .rule-desc { margin-bottom: 12px; }
+
+#pricing .btn {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
 /* ── Trust Manifest ──────────────────────────────────────── */
 .manifest-section { background: var(--bg-secondary); }
 
