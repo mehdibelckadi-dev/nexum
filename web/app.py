@@ -98,6 +98,11 @@ async def blog_article_ai_act():
     return FileResponse(_STATIC / "blog" / "ai-act-aplazamiento-2026.html")
 
 
+@app.get("/blog/nexum-004-fabian-williams")
+async def blog_article_fabian_williams():
+    return FileResponse(_STATIC / "blog" / "nexum-004-fabian-williams.html")
+
+
 @app.get("/registry-data")
 async def registry_data():
     path = _STATIC / "registry_data.json"

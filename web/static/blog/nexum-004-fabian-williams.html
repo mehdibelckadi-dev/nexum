@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Case Study: NEXUM-004 IdempotencyMissing on a real MCP spec — Nexum</title>
+  <meta name="description" content="A public MCP storefront exposed NEXUM-004 IdempotencyMissing on a mutating tool. Here's the finding, why the runtime guards missed it, and the fix — shipped in a public PR within a day.">
+  <link rel="icon" href="/static/img/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/static/img/apple-touch-icon.png">
+  <meta property="og:image" content="https://getnexum.dev/static/img/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="/static/css/nexum.css">
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header class="site-header">
+  <nav class="nav container">
+    <a href="/" class="nav-logo"><img src="/static/img/logo-icon.png" alt="Nexum" class="nav-logo-icon">nex<span>um</span></a>
+    <ul class="nav-links">
+      <li><a href="/#scanner">Product</a></li>
+      <li><a href="/blog" style="color: var(--text-primary);">Blog</a></li>
+      <li><a href="/registry">Registry</a></li>
+      <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+      <li><a href="/#scanner" class="nav-cta">Scan your API →</a></li>
+    </ul>
+  </nav>
+</header>
+
+<!-- ── Article ────────────────────────────────────────────── -->
+<div class="article-outer">
+  <div class="article-wrap">
+
+    <!-- Header -->
+    <div class="article-header">
+      <div style="display:flex; gap:8px; align-items:center; margin-bottom:20px;">
+        <span class="article-tag">CASE STUDY</span>
+        <span class="article-meta">May 17, 2026</span>
+      </div>
+      <h1 class="article-title">NEXUM-004 on a real spec: how a public MCP storefront closed an IdempotencyMissing finding in a day</h1>
+      <p style="color:var(--text-secondary); font-size:17px; line-height:1.6; margin-top:16px;">
+        This is not a demo spec. Fabian Williams (<a href="https://x.com/fabianwilliams" target="_blank" rel="noopener">@fabianwilliams</a>) built a public, MCP-callable storefront — a real purchase flow, live on <a href="https://fabswill.com" target="_blank" rel="noopener">fabswill.com</a>. When Nexum's rules were walked against his spec by hand, one of them failed: NEXUM-004. Here's what happened, in his own words and his own pull request.
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div class="article-content">
+
+      <h2>The spec</h2>
+      <p>
+        Fabian's storefront serves one MCP-callable endpoint that produces an identical, protocol-neutral
+        audit-trail receipt regardless of caller — he tested it against both hosted Claude Desktop and a
+        fully-local Qwen3.6 27B running offline on his laptop, same six runtime checks, same result. He
+        posted it as <a href="https://x.com/fabianwilliams/status/2055753239660818816" target="_blank" rel="noopener">a thread on X</a>
+        on May 16, 2026.
+      </p>
+      <p>
+        Mehdi replied the next day: the runtime checks looked solid, but what did the spec look like
+        <em>before</em> it reached the client? The receipt-URL pattern — one endpoint satisfying both
+        the security audit and the finance billing view — was interesting from a blast-radius angle: an
+        endpoint that serves two consumers is also one endpoint an agent can call for both.
+      </p>
+      <p>
+        Fabian took the offer. The Nexum scanner binary wasn't public yet, so he walked his
+        <code>purchase_free_bundle</code> spec against the manifest's five enumerated rules by hand.
+        Four passed or didn't apply. One failed.
+      </p>
+
+      <h2>The finding — NEXUM-004 IdempotencyMissing</h2>
+      <p>
+        <span class="finding-sev sev-HIGH">HIGH</span>
+        <code>purchase_free_bundle</code> is a mutating MCP tool: it mints a receipt, upserts a contact in
+        Brevo, mints a JOSE-signed download token, and dispatches a fulfillment email. The tool's
+        <code>inputSchema</code> exposed no <code>Idempotency-Key</code>. Any agent that retries on
+        timeout — the default retry behavior in most LLM-SDK client policies — would double-issue the
+        bundle and double-fire the email.
+      </p>
+
+      <h2>Why the runtime guards didn't catch it</h2>
+      <p>
+        Fabian's storefront already had runtime governance in place: a 5-requests-per-hour rate limit per
+        IP, and a $5/day cost ceiling. Neither one fires on this bug. Two retries inside the same hour
+        both land comfortably under the rate-limit cap on first try. A duplicate free-bundle issue costs
+        nowhere near the daily ceiling. As Fabian put it, that's exactly the defense-in-depth gap Nexum's
+        framing predicts: runtime guards and static spec review catch different classes of failure. A
+        spec-level check on the schema itself catches what request-volume and cost-based guards
+        structurally cannot see.
+      </p>
+
+      <h2>The fix — <a href="https://github.com/fabianwilliams/adotob-mcp/pull/1" target="_blank" rel="noopener">PR #1</a></h2>
+      <p>
+        Fabian shipped the fix the same day, merged May 17, 2026:
+      </p>
+      <ul>
+        <li><strong>Schema.</strong> Added <code>idempotency_key</code> (optional, 8–128 chars, pattern <code>[A-Za-z0-9._-]</code>) to the MCP tool's <code>inputSchema</code>, with the tool description updated to recommend it for production agents.</li>
+        <li><strong>HTTP header.</strong> Both <code>/api/a2a/mcp</code> and <code>/api/a2a/purchase</code> also accept a standard <code>Idempotency-Key</code> request header — the tool argument wins if both are present.</li>
+        <li><strong>Storage.</strong> A new <code>idempotency.ts</code> module backed by Azure Table Storage. <code>PartitionKey</code> and <code>RowKey</code> are hashed values — no raw key or email is stored.</li>
+        <li><strong>Replay semantics, Stripe-style.</strong> On every request with a valid key, the table is checked before input validation runs. On a hit, the original receipt is loaded from Blob storage and returned exactly as-is.</li>
+        <li><strong>Only successes are cached.</strong> Failure receipts are never stored, so a transient downstream failure (a Brevo blip, for example) doesn't get poisoned by a cached error — the agent's retry re-runs the flow as intended.</li>
+        <li><strong>Fail open.</strong> A missing cache hit or a failed write are both swallowed rather than surfaced as errors. Idempotency is a safety belt here, not a new failure mode.</li>
+      </ul>
+
+      <h2>Known v1 limitations</h2>
+      <p>
+        Fabian documented these in the PR itself, rather than glossing over them:
+      </p>
+      <ul>
+        <li>Concurrent requests with the same key can both miss the cache and both run the flow — last-write-wins on the table, and two receipts get written to Blob. A Stripe-style in-progress lock (set state to <code>processing</code> under optimistic concurrency, return 409 on collision) is the planned v2 hardening.</li>
+        <li>No table TTL yet — mappings live until manually reaped. Negligible cost at demo volume; flagged for revisit past 10k+ rows.</li>
+      </ul>
+
+      <div class="code-block">
+        <div class="code-block-header">
+          <span class="code-block-lang">x.com/fabianwilliams · May 17, 2026</span>
+        </div>
+        <pre style="white-space:pre-wrap; font-family:'Inter', -apple-system, sans-serif; font-size:15px; line-height:1.7; color:var(--text-secondary);">“Credit where it is due <a href="https://x.com/MBelckadi" target="_blank" rel="noopener" style="color:var(--accent-blue)">@MBelckadi</a> — your trust-manifest is a clean static-analysis schema.”</pre>
+      </div>
+      <p style="color:var(--text-tertiary); font-size:13px; margin-top:-8px;">
+        — Fabian Williams, closing the thread on <a href="https://x.com/fabianwilliams/status/2055753239660818816" target="_blank" rel="noopener">X</a>.
+      </p>
+
+      <h2>Why this matters</h2>
+      <p>
+        Runtime guards — rate limits, cost ceilings — govern <em>behavior</em>: how often and how much.
+        They say nothing about whether a single call, executed exactly once as designed, is safe to retry.
+        A static read of the spec catches that class of risk before the first agent ever calls the tool —
+        defense-in-depth on top of runtime governance, not a replacement for it. That's the whole premise
+        behind the Nexum Cert.
+      </p>
+
+    </div>
+
+    <!-- CTA -->
+    <div class="article-cta">
+      <div class="section-label">Scan your API</div>
+      <h2 style="margin: 12px 0;">Is your MCP server agent-safe?</h2>
+      <p style="color:var(--text-secondary); margin-bottom:24px; max-width:480px; margin-left:auto; margin-right:auto;">
+        Upload your OpenAPI spec and get a Nexum Cert + PDF report in seconds.
+        Free. No account required.
+      </p>
+      <div class="article-cta-actions">
+        <a href="/#scanner" class="btn btn-primary">Scan your API free →</a>
+        <a href="/registry" class="btn btn-secondary">View the registry</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Footer ────────────────────────────────────────────── -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">nex<span>um</span></div>
+        <div class="footer-tagline">The contract between your agent and your infrastructure</div>
+      </div>
+      <ul class="footer-links">
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="https://github.com/mehdibelckadi-dev/nexum-trust-manifest" target="_blank" rel="noopener">Nexum Cert Spec</a></li>
+        <li><a href="https://getnexum.dev">getnexum.dev</a></li>
+      </ul>
+      <div class="footer-copy mono">Nexum · Open specification · MIT License</div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
