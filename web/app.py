@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +21,24 @@ from nexum.report.pdf_generator import generate_pdf
 app = FastAPI(title="Nexum Scanner", docs_url=None, redoc_url=None)
 _STATIC = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=_STATIC), name="static")
+
+# CSS and JS are shared across every page with no version/hash in the URL, so a
+# stale browser cache after a deploy silently breaks layout or behavior (seen
+# firsthand: Chrome served a cached nexum.css with no network round-trip at
+# all, since StaticFiles sets no Cache-Control by default and heuristic caching
+# kicked in). Force revalidation on every load — ETag/Last-Modified from
+# StaticFiles are untouched, so a 304 still short-circuits the actual transfer.
+# Images carry no correctness risk if briefly stale, so they keep default
+# caching for the bandwidth savings.
+_NO_CACHE_STATIC_PREFIXES = ("/static/css/", "/static/js/")
+
+
+@app.middleware("http")
+async def _no_cache_for_css_js(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(_NO_CACHE_STATIC_PREFIXES):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
 
 _TIER_LABEL = {0: "Tier 0 — LOW RISK", 1: "Tier 1 — MODERATE RISK", 2: "Tier 2 — HIGH RISK"}
 _BADGE_CONFIGS = {
