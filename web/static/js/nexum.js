@@ -25,6 +25,8 @@
   const badgeMarkdown = document.getElementById('badgeMarkdown');
   const btnCopy      = document.getElementById('btnCopy');
   const statApis     = document.getElementById('statApis');
+  const emailInput   = document.getElementById('emailInput');
+  const emailNote    = document.getElementById('emailNote');
 
   // Guard: only run on pages that have the scanner
   if (!dropZone) return;
@@ -139,9 +141,15 @@
     if (!selectedFile) return;
     hideAll();
     showLoading('Generating PDF…');
+    if (emailNote) {
+      emailNote.textContent = '';
+      emailNote.classList.remove('error');
+    }
 
     const form = new FormData();
     form.append('file', selectedFile);
+    const email = emailInput ? emailInput.value.trim() : '';
+    if (email) form.append('email', email);
 
     try {
       const res = await fetch('/report', { method: 'POST', body: form });
@@ -150,6 +158,7 @@
         showError(data.detail || 'Report generation failed.');
         return;
       }
+      const emailStatus = res.headers.get('X-Nexum-Email-Status');
       const blob = await res.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -163,8 +172,20 @@
       hideAll();
       // Re-show result if we had one
       if (lastTier !== null) scanResult.classList.add('visible');
+      showEmailStatus(emailStatus, email);
     } catch (err) {
       showError('Network error while downloading the report.');
+    }
+  }
+
+  function showEmailStatus(status, email) {
+    if (!emailNote) return;
+    if (status === 'sent') {
+      emailNote.textContent = 'PDF also sent to ' + email;
+      emailNote.classList.remove('error');
+    } else if (status === 'failed') {
+      emailNote.textContent = 'Could not email the PDF — downloaded below instead.';
+      emailNote.classList.add('error');
     }
   }
 

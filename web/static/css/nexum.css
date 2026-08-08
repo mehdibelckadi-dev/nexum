@@ -362,6 +362,42 @@ h1, h2, h3 { line-height: 1.15; letter-spacing: -0.02em; }
 
 .scanner-actions .btn { flex: 1; justify-content: center; }
 
+.email-opt-row {
+  margin-top: 12px;
+}
+
+.email-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  transition: border-color var(--transition);
+}
+
+.email-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.email-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+}
+
+.email-note {
+  font-size: 12px;
+  margin-top: 8px;
+  color: var(--text-secondary);
+  min-height: 16px;
+}
+
+.email-note.error {
+  color: var(--accent-red);
+}
+
 /* ── Loading state ───────────────────────────────────────── */
 .scan-loading {
   display: none;
