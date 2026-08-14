@@ -1,9 +1,9 @@
 """HTTP endpoint tests for the Nexum web interface."""
 
 import json
-import smtplib
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -11,34 +11,28 @@ import web.email_utils as email_utils
 from web.app import app
 
 
-class _FakeSMTP:
-    """Stand-in for smtplib.SMTP_SSL — records calls, sends nothing."""
+class _FakeResendResponse:
+    """Stand-in for the httpx.Response returned by a Resend API call."""
 
-    instances: list["_FakeSMTP"] = []
-
-    def __init__(self, host, port, timeout=None):
-        self.host = host
-        self.port = port
-        self.logged_in = None
-        self.sent_message = None
-        _FakeSMTP.instances.append(self)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        return False
-
-    def login(self, user, password):
-        self.logged_in = (user, password)
-
-    def send_message(self, message):
-        self.sent_message = message
+    def __init__(self, status_code: int, text: str = ""):
+        self.status_code = status_code
+        self.text = text
 
 
-class _FailingSMTP(_FakeSMTP):
-    def login(self, user, password):
-        raise smtplib.SMTPAuthenticationError(535, b"bad credentials")
+class _FakePost:
+    """Stand-in for httpx.post — records every call, returns a canned
+    response or raises a canned network-level exception."""
+
+    def __init__(self, response: "_FakeResendResponse | None" = None, exception: Exception | None = None):
+        self.response = response
+        self.exception = exception
+        self.calls: list[dict] = []
+
+    def __call__(self, url, *, headers=None, json=None, timeout=None):
+        self.calls.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        if self.exception is not None:
+            raise self.exception
+        return self.response
 
 client = TestClient(app)
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -120,12 +114,8 @@ class TestReportEmailOptIn:
     failure mode must still return the PDF (fail-open, never blocks)."""
 
     @pytest.fixture(autouse=True)
-    def smtp_env(self, monkeypatch):
-        monkeypatch.setenv("NEXUM_SMTP_HOST", "smtp.hostinger.com")
-        monkeypatch.setenv("NEXUM_SMTP_PORT", "465")
-        monkeypatch.setenv("NEXUM_SMTP_USER", "hello@getnexum.dev")
-        monkeypatch.setenv("NEXUM_SMTP_PASSWORD", "test-password")
-        monkeypatch.setenv("NEXUM_SMTP_FROM", "hello@getnexum.dev")
+    def resend_env(self, monkeypatch):
+        monkeypatch.setenv("RESEND_API_KEY", "test-resend-key")
 
     def test_no_email_field_leaves_flow_unchanged(self):
         res = _upload("/report", "sample_mcp.json")
@@ -134,21 +124,25 @@ class TestReportEmailOptIn:
         assert res.content[:4] == b"%PDF"
 
     def test_valid_email_sends_and_reports_sent(self, monkeypatch):
-        _FakeSMTP.instances = []
-        monkeypatch.setattr(email_utils.smtplib, "SMTP_SSL", _FakeSMTP)
+        fake_post = _FakePost(response=_FakeResendResponse(200))
+        monkeypatch.setattr(email_utils.httpx, "post", fake_post)
 
         res = _upload("/report", "sample_mcp.json", data={"email": "reviewer@example.com"})
 
         assert res.status_code == 200
         assert res.headers["x-nexum-email-status"] == "sent"
         assert res.content[:4] == b"%PDF"
-        assert len(_FakeSMTP.instances) == 1
-        sent = _FakeSMTP.instances[0]
-        assert sent.logged_in == ("hello@getnexum.dev", "test-password")
-        assert sent.sent_message["To"] == "reviewer@example.com"
+        assert len(fake_post.calls) == 1
+        call = fake_post.calls[0]
+        assert call["url"] == "https://api.resend.com/emails"
+        assert call["headers"]["Authorization"] == "Bearer test-resend-key"
+        assert call["json"]["from"] == "Nexum <hello@getnexum.dev>"
+        assert call["json"]["to"] == ["reviewer@example.com"]
+        assert call["json"]["attachments"][0]["filename"].endswith("_nexum.pdf")
 
-    def test_smtp_failure_still_returns_pdf(self, monkeypatch):
-        monkeypatch.setattr(email_utils.smtplib, "SMTP_SSL", _FailingSMTP)
+    def test_api_error_still_returns_pdf(self, monkeypatch):
+        fake_post = _FakePost(response=_FakeResendResponse(422, text="invalid recipient"))
+        monkeypatch.setattr(email_utils.httpx, "post", fake_post)
 
         res = _upload("/report", "sample_mcp.json", data={"email": "reviewer@example.com"})
 
@@ -156,15 +150,29 @@ class TestReportEmailOptIn:
         assert res.headers["x-nexum-email-status"] == "failed"
         assert res.content[:4] == b"%PDF"
 
-    def test_malformed_email_reports_failed_without_sending(self):
-        res = _upload("/report", "sample_mcp.json", data={"email": "not-an-email"})
+    def test_network_failure_still_returns_pdf(self, monkeypatch):
+        fake_post = _FakePost(exception=httpx.TimeoutException("timed out"))
+        monkeypatch.setattr(email_utils.httpx, "post", fake_post)
+
+        res = _upload("/report", "sample_mcp.json", data={"email": "reviewer@example.com"})
 
         assert res.status_code == 200
         assert res.headers["x-nexum-email-status"] == "failed"
         assert res.content[:4] == b"%PDF"
 
-    def test_missing_smtp_config_reports_failed(self, monkeypatch):
-        monkeypatch.delenv("NEXUM_SMTP_PASSWORD", raising=False)
+    def test_malformed_email_reports_failed_without_sending(self, monkeypatch):
+        fake_post = _FakePost(response=_FakeResendResponse(200))
+        monkeypatch.setattr(email_utils.httpx, "post", fake_post)
+
+        res = _upload("/report", "sample_mcp.json", data={"email": "not-an-email"})
+
+        assert res.status_code == 200
+        assert res.headers["x-nexum-email-status"] == "failed"
+        assert res.content[:4] == b"%PDF"
+        assert len(fake_post.calls) == 0
+
+    def test_missing_resend_api_key_reports_failed(self, monkeypatch):
+        monkeypatch.delenv("RESEND_API_KEY", raising=False)
 
         res = _upload("/report", "sample_mcp.json", data={"email": "reviewer@example.com"})
 
@@ -195,12 +203,8 @@ class TestScanLogging:
     def test_report_logs_email_requested_flag(self, tmp_path, monkeypatch):
         log_path = tmp_path / "scan_log.jsonl"
         monkeypatch.setenv("NEXUM_SCAN_LOG_PATH", str(log_path))
-        monkeypatch.setenv("NEXUM_SMTP_HOST", "smtp.hostinger.com")
-        monkeypatch.setenv("NEXUM_SMTP_PORT", "465")
-        monkeypatch.setenv("NEXUM_SMTP_USER", "hello@getnexum.dev")
-        monkeypatch.setenv("NEXUM_SMTP_PASSWORD", "test-password")
-        monkeypatch.setenv("NEXUM_SMTP_FROM", "hello@getnexum.dev")
-        monkeypatch.setattr(email_utils.smtplib, "SMTP_SSL", _FakeSMTP)
+        monkeypatch.setenv("RESEND_API_KEY", "test-resend-key")
+        monkeypatch.setattr(email_utils.httpx, "post", _FakePost(response=_FakeResendResponse(200)))
 
         res = _upload("/report", "sample_mcp.json", data={"email": "reviewer@example.com"})
         assert res.status_code == 200

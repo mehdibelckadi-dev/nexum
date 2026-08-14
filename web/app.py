@@ -179,9 +179,9 @@ async def report(request: Request, file: UploadFile = File(...), email: str | No
     pdf_filename = f"{stem}_nexum.pdf"
 
     # Email delivery is strictly optional and additive: any failure here
-    # (bad address, SMTP outage, missing config) must never prevent the PDF
-    # from downloading normally, which is why this is try/except rather than
-    # raising an HTTPException.
+    # (bad address, Resend API outage, missing config) must never prevent
+    # the PDF from downloading normally, which is why this is try/except
+    # rather than raising an HTTPException.
     email_address = (email or "").strip()
     email_requested = bool(email_address)
     email_status = None
